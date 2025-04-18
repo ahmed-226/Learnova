@@ -22,6 +22,14 @@ model User {
   lastName  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  // Relations
+  courses   Course[] @relation("InstructorCourses")
+  progress  Progress[]
+  answers   Answer[]
+  submissions Submission[]
+  threads   Thread[]
+  posts     Post[]
+  notifications Notification[]
 }
 
 model Course {
@@ -31,6 +39,12 @@ model Course {
   instructorId Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  // Relations
+  instructor  User     @relation("InstructorCourses", fields: [instructorId], references: [id])
+  modules     Module[]
+  forum       Forum?
+  progress    Progress[]
+  @@index([instructorId])
 }
 
 model Module {
@@ -41,6 +55,12 @@ model Module {
   order       Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  // Relations
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons     Lesson[]
+  quizzes     Quiz[]
+  assignments Assignment[]
+  @@index([courseId])
 }
 
 model Lesson{
@@ -51,6 +71,9 @@ model Lesson{
   order       Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  // Relations
+  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  @@index([moduleId])
 }
 model Quiz{
   id          Int      @id @default(autoincrement())
@@ -58,6 +81,11 @@ model Quiz{
   moduleId    Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  // Relations
+  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  questions   Question[]
+  @@index([moduleId])
+
 }
 
 enum QuestionType {
@@ -75,6 +103,10 @@ model Question {
   correctAnswer String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  // Relations
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers     Answer[]
+  @@index([quizId])
 }
 model Answer{
   id          Int      @id @default(autoincrement())
@@ -84,12 +116,20 @@ model Answer{
   isCorrect   Boolean?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  // Relations
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([questionId, userId])
 }
 model Forum{
   id          Int      @id @default(autoincrement())
-  courseId    Int
+  courseId    Int      @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  // Relations
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  threads     Thread[]
+  @@index([courseId])
 }
 model Thread{
   id          Int      @id @default(autoincrement())
@@ -98,6 +138,11 @@ model Thread{
   title       String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  // Relations
+  forum       Forum    @relation(fields: [forumId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posts       Post[]
+  @@index([forumId, userId])
 }
 model Post{
   id          Int      @id @default(autoincrement())
@@ -107,6 +152,14 @@ model Post{
   parentId    Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // Relations
+  thread      Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent      Post?    @relation("PostReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Post[]   @relation("PostReplies")
+  @@index([threadId, userId, parentId])
+
 }
 model Assignment{
   id          Int      @id @default(autoincrement())
@@ -116,6 +169,11 @@ model Assignment{
   dueDate     DateTime
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // Relations
+  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  submissions Submission[]
+  @@index([moduleId])
 }
 
 enum ContentType {
@@ -134,15 +192,26 @@ model Submission{
   grade       Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // Relations
+  assignment  Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([assignmentId, userId])
 }
 model Progress{
   id          Int      @id @default(autoincrement())
   userId      Int
   courseId    Int
-  progress    Float?
+  progress    Int?      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-}
+  @@unique([userId, courseId])
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  @@index([userId, courseId])
+  }
 model Notification{
   id          Int      @id @default(autoincrement())
   userId      Int
@@ -150,4 +219,8 @@ model Notification{
   isRead      Boolean   @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
 }
