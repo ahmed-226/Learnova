@@ -7,11 +7,147 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  ADMIN
+  INSTRUCTOR
+  STUDENT
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
   password  String
-  role      String
+  role      UserRole
+  firstName String
+  lastName  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Course {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  instructorId Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Module {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  courseId    Int
+  order       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Lesson{
+  id          Int      @id @default(autoincrement())
+  title       String
+  content     String?   @db.Text
+  moduleId    Int
+  order       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+model Quiz{
+  id          Int      @id @default(autoincrement())
+  title       String
+  moduleId    Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+}
+
+model Question {
+  id          Int      @id @default(autoincrement())
+  quizId      Int
+  question    String
+  type        QuestionType
+  options     Json?
+  correctAnswer String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+model Answer{
+  id          Int      @id @default(autoincrement())
+  questionId  Int
+  userId      Int
+  answer      String
+  isCorrect   Boolean?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+model Forum{
+  id          Int      @id @default(autoincrement())
+  courseId    Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+model Thread{
+  id          Int      @id @default(autoincrement())
+  forumId     Int
+  userId      Int
+  title       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+model Post{
+  id          Int      @id @default(autoincrement())
+  threadId    Int
+  userId      Int
+  content     String   
+  parentId    Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+model Assignment{
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  moduleId    Int
+  dueDate     DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum ContentType {
+  TEXT
+  URL
+  JSON
+}
+
+model Submission{
+  id          Int      @id @default(autoincrement())
+  assignmentId Int
+  userId      Int
+  content     String   @db.Text
+  contentType ContentType
+  feedback    String?
+  grade       Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+model Progress{
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  courseId    Int
+  progress    Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+model Notification{
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  message     String
+  isRead      Boolean   @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
