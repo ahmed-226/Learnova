@@ -1,0 +1,68 @@
+erDiagram
+    User ||--o{ Course : instructs
+    User ||--o{ Progress : tracks
+    User ||--o{ Answer : submits
+    User ||--o{ Submission : creates
+    User ||--o{ Thread : authors
+    User ||--o{ Post : writes
+    User ||--o{ Notification : receives
+    Course ||--o{ Module : contains
+    Course ||--|| Forum : has
+    Course ||--o{ Progress : tracked_in
+    Module ||--o{ Lesson : contains
+    Module ||--o{ Quiz : includes
+    Module ||--o{ Assignment : has
+    Quiz ||--o{ Question : contains
+    Question ||--o{ Answer : has
+    Forum ||--o{ Thread : contains
+    Thread ||--o{ Post : has
+    Post ||--o{ Post : replies_to
+    Assignment ||--o{ Submission : receives
+
+    User {
+        int id PK
+        string email
+        string password
+        string role
+        string firstName
+        string lastName
+        datetime createdAt
+        datetime updatedAt
+    }
+    
+    Course {
+        int id PK
+        string title
+        string description
+        int instructorId FK
+        datetime createdAt
+        datetime updatedAt
+    }
+    
+    Module {
+        int id PK
+        string title
+        string description
+        int courseId FK
+        int order
+        datetime createdAt
+        datetime updatedAt
+    }
+    
+    Lesson {
+        int id PK
+        string title
+        string content
+        int moduleId FK
+        int order
+        datetime createdAt
+        datetime updatedAt
+    }
+    
+    Quiz {
+        int id PK
+        string title
+        int moduleId FK
+        datetime createdAt
+        datetime updatedAt
+    }
