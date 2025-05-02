@@ -4,6 +4,7 @@ const { HTTP_STATUS } = require('../utils/constants');
 
 const validate = (schema) => (req, res, next) => {
   try {
+
     let validationTarget;
     let validationSchema;
 
