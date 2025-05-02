@@ -1,37 +1,51 @@
-const logger = require('../utils/logger');
-const { HTTP_STATUS } = require('../utils/constants');
-
-
 const validate = (schema) => (req, res, next) => {
   try {
-
-    let validationTarget;
-    let validationSchema;
-
-    // Determine what to validate based on request method
-    if (req.method === 'GET') {
-    // For GET requests, validate query parameters
-      validationTarget = req.query;
-      validationSchema = schema.query || schema;
-    } else {
-    // For other methods, validate request body
-      validationTarget = req.body;
-      validationSchema = schema.body || schema;
+    // If there's no schema, just proceed
+    if (!schema) {
+      return next();
     }
 
-    // Validate URL parameters if schema includes params definition
-    if (req.params && Object.keys(req.params).length > 0 && schema.params) {
-      const { error: paramsError } = schema.params.validate(req.params, { abortEarly: false });
-      if (paramsError) {
-        logger.warn(`URL params validation error: ${paramsError.message}`);
-        return res.status(HTTP_STATUS.BAD_REQUEST).json({
-          error: 'Validation error',
-          details: paramsError.details.map(detail => detail.message)
-        });
+    // Check if we have a complex schema (with separate params/body/query objects)
+    const isComplexSchema = schema.params || schema.body || schema.query;
+
+    // For path parameters, if they exist in the request
+    if (req.params && Object.keys(req.params).length > 0) {
+    // Use params schema if available, otherwise skip param validation
+      const paramsSchema = isComplexSchema ? schema.params : null;
+      
+      if (paramsSchema) {
+        const { error: paramsError } = paramsSchema.validate(req.params, { abortEarly: false });
+        
+        if (paramsError) {
+          logger.warn(`URL params validation error: ${paramsError.message}`);
+          return res.status(HTTP_STATUS.BAD_REQUEST).json({
+            error: 'Validation error',
+            details: paramsError.details.map(detail => detail.message)
+          });
+        }
       }
     }
 
-    // Main validation (body or query)
+    // Determine what else to validate based on request method
+    let validationTarget;
+    let validationSchema;
+
+    if (req.method === 'GET') {
+    // For GET requests, validate query parameters
+      validationTarget = req.query;
+      validationSchema = isComplexSchema ? schema.query : schema;
+    } else {
+    // For other methods, validate request body
+      validationTarget = req.body;
+      validationSchema = isComplexSchema ? schema.body : schema;
+    }
+
+    // Skip if no suitable schema found
+    if (!validationSchema) {
+      return next();
+    }
+
+    // Perform validation
     const { error, value } = validationSchema.validate(validationTarget, {
       abortEarly: false,
       stripUnknown: true
