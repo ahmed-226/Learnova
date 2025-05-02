@@ -15,10 +15,16 @@ const createCourse = async (req, res,next) => {
   }
 }
 
-const getCourseById = async (req, res,next) => {
+const getCourseById = async (req, res, next) => {
   try {
-    const courseId = req.params.courseId;
-    const includeDetails = req.user.role !== 'STUDENT';
+    const courseId = parseInt(req.params.courseId);
+    if (isNaN(courseId)) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        error: 'Invalid course ID'
+      });
+    }
+    
+    const includeDetails = req.user ? req.user.role !== 'STUDENT' : false;
     
     const course = await courseService.getCourseById(courseId, includeDetails);
     res.status(HTTP_STATUS.OK).json(course);
