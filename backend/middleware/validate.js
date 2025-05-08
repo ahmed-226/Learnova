@@ -1,3 +1,6 @@
+const { HTTP_STATUS } = require('../utils/constants');
+const logger = require('../utils/logger');
+
 const validate = (schema) => (req, res, next) => {
   try {
     // If there's no schema, just proceed
