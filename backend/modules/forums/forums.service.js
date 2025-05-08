@@ -76,7 +76,97 @@ const getAssignmentById = async (assignmentId) => {
 };
 
 
+const updateAssignment = async (assignmentId, assignmentData, instructorId) => {
+  try {
+    
+    const assignment = await prisma.assignment.findUnique({
+      where: { id: Number(assignmentId) },
+      include: {
+        module: {
+          select: {
+            course: {
+              select: { instructorId: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!assignment) {
+      const error = new Error('Assignment not found');
+      error.status = HTTP_STATUS.NOT_FOUND;
+      throw error;
+    }
+
+    if (assignment.module.course.instructorId !== Number(instructorId)) {
+      const error = new Error('Not authorized to update this assignment');
+      error.status = HTTP_STATUS.FORBIDDEN;
+      throw error;
+    }
+
+    
+    const updateData = {};
+    if (assignmentData.title) updateData.title = assignmentData.title;
+    if (assignmentData.description !== undefined) updateData.description = assignmentData.description;
+    if (assignmentData.dueDate) updateData.dueDate = new Date(assignmentData.dueDate);
+
+    
+    return await prisma.assignment.update({
+      where: { id: Number(assignmentId) },
+      data: updateData
+    });
+  } catch (error) {
+    logger.error(`Error updating assignment: ${error.message}`);
+    throw error;
+  }
+};
+
+/**
+ * Delete an assignment
+ */
+const deleteAssignment = async (assignmentId, instructorId) => {
+  try {
+    
+    const assignment = await prisma.assignment.findUnique({
+      where: { id: Number(assignmentId) },
+      include: {
+        module: {
+          select: {
+            course: {
+              select: { instructorId: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!assignment) {
+      const error = new Error('Assignment not found');
+      error.status = HTTP_STATUS.NOT_FOUND;
+      throw error;
+    }
+
+    if (assignment.module.course.instructorId !== Number(instructorId)) {
+      const error = new Error('Not authorized to delete this assignment');
+      error.status = HTTP_STATUS.FORBIDDEN;
+      throw error;
+    }
+
+    
+    await prisma.assignment.delete({
+      where: { id: Number(assignmentId) }
+    });
+
+    return { success: true };
+  } catch (error) {
+    logger.error(`Error deleting assignment: ${error.message}`);
+    throw error;
+  }
+};
+
 module.exports={
   createAssignment,
-  getAssignmentById
+  getAssignmentById,
+  updateAssignment,
+  deleteAssignment
 }
