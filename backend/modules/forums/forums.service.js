@@ -1,0 +1,331 @@
+const prisma = require('../../config/database');
+const logger = require('../../utils/logger');
+const { HTTP_STATUS } = require('../../utils/constants');
+
+
+const getForumByCourseId = async (courseId) => {
+    try {
+
+        const course = await prisma.course.findUnique({
+            where: { id: Number(courseId) }
+        });
+
+        if (!course) {
+            const error = new Error('Course not found');
+            error.status = HTTP_STATUS.NOT_FOUND;
+            throw error;
+        }
+
+
+        let forum = await prisma.forum.findUnique({
+            where: { courseId: Number(courseId) }
+        });
+
+
+        if (!forum) {
+            forum = await prisma.forum.create({
+                data: {
+                    courseId: Number(courseId)
+                }
+            });
+            logger.info(`Created forum for course ${courseId}`);
+        }
+
+        return forum;
+    } catch (error) {
+        logger.error(`Error getting forum by course ID: ${error.message}`);
+        throw error;
+    }
+};
+
+
+const getThreadsByForumId = async (forumId, page = 1, limit = 10) => {
+    try {
+
+        const forum = await prisma.forum.findUnique({
+            where: { id: Number(forumId) }
+        });
+
+        if (!forum) {
+            const error = new Error('Forum not found');
+            error.status = HTTP_STATUS.NOT_FOUND;
+            throw error;
+        }
+
+
+        const skip = (page - 1) * limit;
+
+
+        const [threads, totalCount] = await Promise.all([
+            prisma.thread.findMany({
+                where: { forumId: Number(forumId) },
+                skip,
+                take: limit,
+                orderBy: { updatedAt: 'desc' },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true
+                        }
+                    },
+                    _count: {
+                        select: { posts: true }
+                    }
+                }
+            }),
+            prisma.thread.count({
+                where: { forumId: Number(forumId) }
+            })
+        ]);
+
+
+        const formattedThreads = threads.map(thread => ({
+            ...thread,
+            postCount: thread._count.posts,
+            _count: undefined
+        }));
+
+        return {
+            threads: formattedThreads,
+            pagination: {
+                page,
+                limit,
+                totalCount,
+                totalPages: Math.ceil(totalCount / limit)
+            }
+        };
+    } catch (error) {
+        logger.error(`Error getting threads by forum ID: ${error.message}`);
+        throw error;
+    }
+};
+
+
+const createThread = async (forumId, threadData, userId) => {
+    try {
+
+        const forum = await prisma.forum.findUnique({
+            where: { id: Number(forumId) }
+        });
+
+        if (!forum) {
+            const error = new Error('Forum not found');
+            error.status = HTTP_STATUS.NOT_FOUND;
+            throw error;
+        }
+
+
+        const thread = await prisma.thread.create({
+            data: {
+                title: threadData.title,
+                forumId: Number(forumId),
+                userId: Number(userId)
+            }
+        });
+
+
+        const post = await prisma.post.create({
+            data: {
+                content: threadData.content,
+                threadId: thread.id,
+                userId: Number(userId)
+            }
+        });
+
+
+        return {
+            ...thread,
+            initialPost: post
+        };
+    } catch (error) {
+        logger.error(`Error creating thread: ${error.message}`);
+        throw error;
+    }
+};
+
+const getThreadById = async (threadId, page = 1, limit = 20) => {
+    try {
+
+        const skip = (page - 1) * limit;
+
+
+        const thread = await prisma.thread.findUnique({
+            where: { id: Number(threadId) },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true
+                    }
+                },
+                forum: {
+                    select: {
+                        id: true,
+                        courseId: true,
+                        course: {
+                            select: {
+                                id: true,
+                                title: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!thread) {
+            const error = new Error('Thread not found');
+            error.status = HTTP_STATUS.NOT_FOUND;
+            throw error;
+        }
+
+
+        const [posts, totalCount] = await Promise.all([
+            prisma.post.findMany({
+                where: { threadId: Number(threadId), parentId: null },
+                skip,
+                take: limit,
+                orderBy: { createdAt: 'asc' },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true
+                        }
+                    },
+                    replies: {
+                        include: {
+                            user: {
+                                select: {
+                                    id: true,
+                                    firstName: true,
+                                    lastName: true
+                                }
+                            }
+                        },
+                        orderBy: { createdAt: 'asc' }
+                    }
+                }
+            }),
+            prisma.post.count({
+                where: { threadId: Number(threadId), parentId: null }
+            })
+        ]);
+
+
+        return {
+            thread,
+            posts,
+            pagination: {
+                page,
+                limit,
+                totalCount,
+                totalPages: Math.ceil(totalCount / limit)
+            }
+        };
+    } catch (error) {
+        logger.error(`Error getting thread by ID: ${error.message}`);
+        throw error;
+    }
+};
+
+
+const updateThread = async (threadId, threadData, userId, userRole) => {
+    try {
+
+        const thread = await prisma.thread.findUnique({
+            where: { id: Number(threadId) },
+            include: {
+                forum: {
+                    include: {
+                        course: {
+                            select: { instructorId: true }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!thread) {
+            const error = new Error('Thread not found');
+            error.status = HTTP_STATUS.NOT_FOUND;
+            throw error;
+        }
+
+
+        const isCreator = thread.userId === Number(userId);
+        const isInstructor = thread.forum.course.instructorId === Number(userId);
+        const isAdmin = userRole === 'ADMIN';
+
+        if (!isCreator && !isInstructor && !isAdmin) {
+            const error = new Error('Not authorized to update this thread');
+            error.status = HTTP_STATUS.FORBIDDEN;
+            throw error;
+        }
+
+
+        return await prisma.thread.update({
+            where: { id: Number(threadId) },
+            data: { title: threadData.title }
+        });
+    } catch (error) {
+        logger.error(`Error updating thread: ${error.message}`);
+        throw error;
+    }
+};
+
+
+const deleteThread = async (threadId, userId, userRole) => {
+    try {
+
+        const thread = await prisma.thread.findUnique({
+            where: { id: Number(threadId) },
+            include: {
+                forum: {
+                    include: {
+                        course: {
+                            select: { instructorId: true }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!thread) {
+            const error = new Error('Thread not found');
+            error.status = HTTP_STATUS.NOT_FOUND;
+            throw error;
+        }
+
+
+        const isCreator = thread.userId === Number(userId);
+        const isInstructor = thread.forum.course.instructorId === Number(userId);
+        const isAdmin = userRole === 'ADMIN';
+
+        if (!isCreator && !isInstructor && !isAdmin) {
+            const error = new Error('Not authorized to delete this thread');
+            error.status = HTTP_STATUS.FORBIDDEN;
+            throw error;
+        }
+
+
+        await prisma.thread.delete({
+            where: { id: Number(threadId) }
+        });
+
+        return { success: true };
+    } catch (error) {
+        logger.error(`Error deleting thread: ${error.message}`);
+        throw error;
+    }
+};
+
+module.exports = {
+    getForumByCourseId,
+    getThreadsByForumId,
+    createThread
+}
