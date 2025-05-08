@@ -299,11 +299,104 @@ const gradeSubmission = async (submissionId, gradeData, instructorId) => {
   }
 };
 
+const getAssignmentSubmissions = async (assignmentId, instructorId) => {
+  try {
+    
+    const assignment = await prisma.assignment.findUnique({
+      where: { id: Number(assignmentId) },
+      include: {
+        module: {
+          select: {
+            course: {
+              select: { instructorId: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!assignment) {
+      const error = new Error('Assignment not found');
+      error.status = HTTP_STATUS.NOT_FOUND;
+      throw error;
+    }
+
+    if (assignment.module.course.instructorId !== Number(instructorId)) {
+      const error = new Error('Not authorized to view submissions for this assignment');
+      error.status = HTTP_STATUS.FORBIDDEN;
+      throw error;
+    }
+
+    return await prisma.submission.findMany({
+      where: { assignmentId: Number(assignmentId) },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  } catch (error) {
+    logger.error(`Error getting assignment submissions: ${error.message}`);
+    throw error;
+  }
+};
+
+
+const getUserSubmission = async (assignmentId, userId) => {
+  try {
+    
+    const assignment = await prisma.assignment.findUnique({
+      where: { id: Number(assignmentId) }
+    });
+
+    if (!assignment) {
+      const error = new Error('Assignment not found');
+      error.status = HTTP_STATUS.NOT_FOUND;
+      throw error;
+    }
+
+    
+    const submission = await prisma.submission.findFirst({
+      where: {
+        assignmentId: Number(assignmentId),
+        userId: Number(userId)
+      }
+    });
+
+    return submission || null; 
+  } catch (error) {
+    logger.error(`Error getting user submission: ${error.message}`);
+    throw error;
+  }
+};
+
+
+const getAssignmentsByModule = async (moduleId) => {
+  try {
+    return await prisma.assignment.findMany({
+      where: { moduleId: Number(moduleId) },
+      orderBy: { dueDate: 'asc' }
+    });
+  } catch (error) {
+    logger.error(`Error getting assignments by module: ${error.message}`);
+    throw error;
+  }
+};
+
 module.exports={
   createAssignment,
   getAssignmentById,
   updateAssignment,
   deleteAssignment,
   submitAssignment,
-  gradeSubmission
+  gradeSubmission,
+  getAssignmentSubmissions,
+  getUserSubmission,
+  getAssignmentsByModule
 }
