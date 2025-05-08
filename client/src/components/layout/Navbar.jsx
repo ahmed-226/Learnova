@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import ThemeToggle from '../common/ThemeToggle';
+import { useNavigate } from 'react-router-dom';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const navigate = useNavigate();
   
   return (
     <nav className="bg-white dark:bg-dark-card shadow-sm border-b border-gray-100 dark:border-dark-border sticky top-0 z-50">
@@ -34,7 +36,7 @@ const Navbar = () => {
             <a href="#" className="text-gray-700 dark:text-gray-300 hover:text-primary-700 dark:hover:text-primary-400 px-3 py-2">Courses</a>
             <a href="#" className="text-gray-700 dark:text-gray-300 hover:text-primary-700 dark:hover:text-primary-400 px-3 py-2">About</a>
             <a href="#" className="text-gray-700 dark:text-gray-300 hover:text-primary-700 dark:hover:text-primary-400 px-3 py-2">Contact</a>
-            <button className="btn btn-outline ml-2">Sign In</button>
+            <button className="btn btn-outline ml-2" onClick={()=>navigate('./auth')}>Sign In</button>
             <button className="btn btn-primary">Register</button>
             <ThemeToggle />
           </div>

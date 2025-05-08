@@ -1,26 +1,16 @@
 import React from 'react';
 import {motion} from 'framer-motion';
+import GridBackground from '../ui/GridBackground';
+import FloatingDecoration from '../ui/FloatingDecoration';
 
 const HeroSection = () => {
     return (
         <section className="relative overflow-hidden bg-gradient-to-br from-primary-900 to-primary-700 dark:from-primary-900 dark:to-primary-800 min-h-screen flex items-center">
-      {/* Background pattern overlay */}
-      <div className="absolute inset-0 opacity-10">
-        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-          <defs>
-            <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-              <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" strokeWidth="0.5"/>
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-        </svg>
-      </div>
+        {/* Background pattern overlay */}
+        <GridBackground />
 
         {/* Floating decoration elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute left-1/4 top-1/4 w-64 h-64 bg-primary-400/20 dark:bg-primary-300/10 rounded-full blur-3xl"></div>
-          <div className="absolute right-1/4 bottom-1/4 w-80 h-80 bg-secondary-400/20 dark:bg-secondary-300/10 rounded-full blur-3xl"></div>
-        </div>
+        <FloatingDecoration />
 
         <div className="relative w-full max-w-7xl mx-auto px-4 py-16 flex flex-col md:flex-row items-center">
           {/* Text content */}
