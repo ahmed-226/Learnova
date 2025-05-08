@@ -1,7 +1,20 @@
-# Learnova Backend
+# Learnova
+
+
+![Learnova Homepage](./assets/homepage-screenshot.png)
 
 ## Overview
-Backend for the LearnSphere educational platform, built with Express.js, Prisma, and PostgreSQL.
+Learnova is a fully functional educational platform designed to transform online learning. It provides a seamless experience for students and instructors with features like user management, course creation, lesson management, quizzes, assignments, forums, and more. The platform is built with Express.js, Prisma, and PostgreSQL for a robust backend.
+
+## Features
+- User authentication and management
+- Course creation and management
+- Lesson and content delivery
+- Interactive quizzes and assignments
+- Community forums for discussions
+- Real-time progress tracking
+- Responsive design for all devices
+
 
 ## Setup
 1. Install dependencies: `npm install`
@@ -10,9 +23,9 @@ Backend for the LearnSphere educational platform, built with Express.js, Prisma,
 4. Start server: `npm run dev`
 
 ## Environment Variables
-- DATABASE_URL: PostgreSQL connection string
-- JWT_SECRET: Secret for JWT authentication
-- PORT: Server port (default: 5000)
+- `DATABASE_URL`: PostgreSQL connection string
+- `JWT_SECRET`: Secret for JWT authentication
+- `PORT`: Server port (default: 5000)
 
 ## Database Diagrams
 - [![ER Diagram](https://img.shields.io/badge/Mermaid-ER%20Diagram-blue)](https://mermaid.live/edit#pako:eNq9Vctu2zAQ_BWBZ9uwlMgP3YwWAYo0QYq0l8JAwJBrmYhEGkuqbmL737uSGMd6FAiStLpY3BmOZrm75o4JI4ElDPCz4inyfKkDen5YwGC_Hw7NLvhkCrQQJIHS1mEhnO1ybtCkCNYSyyEXDz2UhbZbWiWBLe5z1SdyWwLWKqOJJRC4gx7W9zUhkhi8cGuDfWaMdYRvUfUKXBunVkpwV38IQYD69Uz0yXrqlZFFVqYujHac8u-Q9vvgwmCRE2fNezXaRwPyTuma6OU98SuR6tQbH2uSvhXqqSqFyAoJvZQFHWGqc9Du1FS18SgC1mff_NYRaNfsKFMn2y5FU8WHm9U4KlTrJoawyRTYO2dqykkGfa3xUrGT4u7q9_JRtE_J4ObyJUSNq3QaQM5V1oluuLVbg7IDoMmgE1wptO6a510k421AUgs7lYPvZrlwPVixkafYof5ptNKrknPK9dilJhGoNmVVWyJ-mg1-kcHF5Qea9u34L0yL6jxahkuAygf4gTn4YXxHDuVMUAc3BfLqaP6D_2rc3-L-ry7fZIkNWA5IUyfpjqnsLJlbA80IS-hVcnxYsqUuefR3bm4ftWAJtSUMGJoiXbNkxTNLq1rY31HH6Ibrn8bkz1tAKmrnq_pGqy62isKSHfvNkmEURaPzSXh2Np9E83AWx_GAPZbxcDwax-E0nEzjeDY_j-PDgD1VutFoPI1ms3kUxuNxOI_DAUuxTMZ7BE1loyHVjiXhJJod_gA2mkhO)
