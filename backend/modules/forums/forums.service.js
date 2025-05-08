@@ -164,9 +164,146 @@ const deleteAssignment = async (assignmentId, instructorId) => {
   }
 };
 
+const submitAssignment = async (assignmentId, submissionData, userId) => {
+  try {
+    
+    const assignment = await prisma.assignment.findUnique({
+      where: { id: Number(assignmentId) },
+      include: {
+        module: {
+          select: {
+            courseId: true
+          }
+        }
+      }
+    });
+
+    if (!assignment) {
+      const error = new Error('Assignment not found');
+      error.status = HTTP_STATUS.NOT_FOUND;
+      throw error;
+    }
+
+    
+    const now = new Date();
+    if (now > assignment.dueDate) {
+      const error = new Error('Assignment due date has passed');
+      error.status = HTTP_STATUS.BAD_REQUEST;
+      throw error;
+    }
+
+    
+    const enrollment = await prisma.progress.findUnique({
+      where: {
+        userId_courseId: {
+          userId: Number(userId),
+          courseId: assignment.module.courseId
+        }
+      }
+    });
+
+    if (!enrollment) {
+      
+      await prisma.progress.create({
+        data: {
+          userId: Number(userId),
+          courseId: assignment.module.courseId,
+          progress: 0
+        }
+      });
+    }
+
+    
+    const existingSubmission = await prisma.submission.findFirst({
+      where: {
+        assignmentId: Number(assignmentId),
+        userId: Number(userId)
+      }
+    });
+
+    
+    if (existingSubmission) {
+      
+      return await prisma.submission.update({
+        where: { id: existingSubmission.id },
+        data: {
+          content: submissionData.content,
+          contentType: submissionData.contentType,
+          grade: null, 
+          feedback: null 
+        }
+      });
+    } else {
+      
+      return await prisma.submission.create({
+        data: {
+          assignmentId: Number(assignmentId),
+          userId: Number(userId),
+          content: submissionData.content,
+          contentType: submissionData.contentType
+        }
+      });
+    }
+  } catch (error) {
+    logger.error(`Error submitting assignment: ${error.message}`);
+    throw error;
+  }
+};
+
+
+const gradeSubmission = async (submissionId, gradeData, instructorId) => {
+  try {
+    
+    const submission = await prisma.submission.findUnique({
+      where: { id: Number(submissionId) },
+      include: {
+        assignment: {
+          include: {
+            module: {
+              select: {
+                course: {
+                  select: { instructorId: true }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!submission) {
+      const error = new Error('Submission not found');
+      error.status = HTTP_STATUS.NOT_FOUND;
+      throw error;
+    }
+
+    
+    if (submission.assignment.module.course.instructorId !== Number(instructorId)) {
+      const error = new Error('Not authorized to grade this submission');
+      error.status = HTTP_STATUS.FORBIDDEN;
+      throw error;
+    }
+
+    
+    const updateData = {};
+    if (gradeData.grade !== undefined) updateData.grade = gradeData.grade;
+    if (gradeData.feedback !== undefined) updateData.feedback = gradeData.feedback;
+
+    return await prisma.submission.update({
+      where: { id: Number(submissionId) },
+      data: updateData
+    });
+  } catch (error) {
+    logger.error(`Error grading submission: ${error.message}`);
+    throw error;
+  }
+};
+
 module.exports={
   createAssignment,
   getAssignmentById,
   updateAssignment,
-  deleteAssignment
+  deleteAssignment,
+  submitAssignment,
+  gradeSubmission
 }
