@@ -97,3 +97,65 @@ const deleteThread = async (req, res, next) => {
         next(error);
     }
 };
+
+const createPost = async (req, res, next) => {
+    try {
+        const threadId = req.params.threadId;
+        const userId = req.user.id;
+
+        const post = await forumService.createPost(threadId, req.body, userId);
+
+        logger.info(`Post created: ${post.id} in thread ${threadId} by user ${userId}`);
+        res.status(HTTP_STATUS.CREATED).json(post);
+    } catch (error) {
+        logger.error(`Error in createPost: ${error.message}`);
+        next(error);
+    }
+};
+
+
+const updatePost = async (req, res, next) => {
+    try {
+        const postId = req.params.postId;
+        const userId = req.user.id;
+        const userRole = req.user.role;
+
+        const updatedPost = await forumService.updatePost(postId, req.body, userId, userRole);
+
+        logger.info(`Post ${postId} updated by user ${userId}`);
+        res.status(HTTP_STATUS.OK).json(updatedPost);
+    } catch (error) {
+        logger.error(`Error in updatePost: ${error.message}`);
+        next(error);
+    }
+};
+
+
+const deletePost = async (req, res, next) => {
+    try {
+        const postId = req.params.postId;
+        const userId = req.user.id;
+        const userRole = req.user.role;
+
+        await forumService.deletePost(postId, userId, userRole);
+
+        logger.info(`Post ${postId} deleted by user ${userId}`);
+        res.status(HTTP_STATUS.OK).json({ success: true });
+    } catch (error) {
+        logger.error(`Error in deletePost: ${error.message}`);
+        next(error);
+    }
+};
+
+
+module.exports = {
+    getForumByCourseId,
+    getThreadsByForumId,
+    createThread,
+    getThreadById,
+    updateThread,
+    deleteThread,
+    createPost,
+    updatePost,
+    deletePost
+};
