@@ -324,8 +324,189 @@ const deleteThread = async (threadId, userId, userRole) => {
     }
 };
 
+const createPost = async (threadId, postData, userId) => {
+    try {
+        
+        const thread = await prisma.thread.findUnique({
+            where: { id: Number(threadId) }
+        });
+
+        if (!thread) {
+            const error = new Error('Thread not found');
+            error.status = HTTP_STATUS.NOT_FOUND;
+            throw error;
+        }
+
+        
+        if (postData.parentId) {
+            const parentPost = await prisma.post.findUnique({
+                where: { id: Number(postData.parentId) },
+                select: { threadId: true }
+            });
+
+            if (!parentPost) {
+                const error = new Error('Parent post not found');
+                error.status = HTTP_STATUS.NOT_FOUND;
+                throw error;
+            }
+
+            if (parentPost.threadId !== Number(threadId)) {
+                const error = new Error('Parent post does not belong to this thread');
+                error.status = HTTP_STATUS.BAD_REQUEST;
+                throw error;
+            }
+        }
+
+        
+        const post = await prisma.post.create({
+            data: {
+                content: postData.content,
+                threadId: Number(threadId),
+                userId: Number(userId),
+                parentId: postData.parentId ? Number(postData.parentId) : null
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true
+                    }
+                }
+            }
+        });
+
+        
+        await prisma.thread.update({
+            where: { id: Number(threadId) },
+            data: { updatedAt: new Date() }
+        });
+
+        return post;
+    } catch (error) {
+        logger.error(`Error creating post: ${error.message}`);
+        throw error;
+    }
+};
+
+
+const updatePost = async (postId, postData, userId, userRole) => {
+    try {
+        
+        const post = await prisma.post.findUnique({
+            where: { id: Number(postId) },
+            include: {
+                thread: {
+                    include: {
+                        forum: {
+                            include: {
+                                course: {
+                                    select: { instructorId: true }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!post) {
+            const error = new Error('Post not found');
+            error.status = HTTP_STATUS.NOT_FOUND;
+            throw error;
+        }
+
+        
+        const isCreator = post.userId === Number(userId);
+        const isInstructor = post.thread.forum.course.instructorId === Number(userId);
+        const isAdmin = userRole === 'ADMIN';
+
+        if (!isCreator && !isInstructor && !isAdmin) {
+            const error = new Error('Not authorized to update this post');
+            error.status = HTTP_STATUS.FORBIDDEN;
+            throw error;
+        }
+
+        
+        return await prisma.post.update({
+            where: { id: Number(postId) },
+            data: { content: postData.content },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        logger.error(`Error updating post: ${error.message}`);
+        throw error;
+    }
+};
+
+
+const deletePost = async (postId, userId, userRole) => {
+    try {
+        
+        const post = await prisma.post.findUnique({
+            where: { id: Number(postId) },
+            include: {
+                thread: {
+                    include: {
+                        forum: {
+                            include: {
+                                course: {
+                                    select: { instructorId: true }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!post) {
+            const error = new Error('Post not found');
+            error.status = HTTP_STATUS.NOT_FOUND;
+            throw error;
+        }
+
+        
+        const isCreator = post.userId === Number(userId);
+        const isInstructor = post.thread.forum.course.instructorId === Number(userId);
+        const isAdmin = userRole === 'ADMIN';
+
+        if (!isCreator && !isInstructor && !isAdmin) {
+            const error = new Error('Not authorized to delete this post');
+            error.status = HTTP_STATUS.FORBIDDEN;
+            throw error;
+        }
+
+        
+        await prisma.post.delete({
+            where: { id: Number(postId) }
+        });
+
+        return { success: true };
+    } catch (error) {
+        logger.error(`Error deleting post: ${error.message}`);
+        throw error;
+    }
+};
+
+
+
 module.exports = {
     getForumByCourseId,
     getThreadsByForumId,
-    createThread
+    createThread,
+    getThreadById,
+    updateThread,
+    deleteThread,
+    createPost,
+    updatePost,
+    deletePost
 }
