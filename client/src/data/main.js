@@ -69,5 +69,31 @@ const TestimonialCards = [
   }
 ];
 
+const enrolledCourses = [
+    { 
+      id: 1, 
+      title: "Web Development Bootcamp", 
+      progress: 75, 
+      instructor: "Sarah Wilson",
+      lastAccessed: "2 days ago",
+      color: "primary" 
+    },
+    { 
+      id: 2, 
+      title: "Data Science Fundamentals", 
+      progress: 40, 
+      instructor: "Michael Brown",
+      lastAccessed: "Yesterday",
+      color: "secondary" 
+    },
+    { 
+      id: 3, 
+      title: "UX Design Principles", 
+      progress: 20, 
+      instructor: "Emily Parker",
+      lastAccessed: "1 week ago",
+      color: "green" 
+    }
+  ];
 
-export { features, popularCourses, TestimonialCards };
+export { features, popularCourses, TestimonialCards, enrolledCourses };

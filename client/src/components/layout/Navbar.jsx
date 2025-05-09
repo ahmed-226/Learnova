@@ -36,8 +36,7 @@ const Navbar = () => {
             <a href="#" className="text-gray-700 dark:text-gray-300 hover:text-primary-700 dark:hover:text-primary-400 px-3 py-2">Courses</a>
             <a href="#" className="text-gray-700 dark:text-gray-300 hover:text-primary-700 dark:hover:text-primary-400 px-3 py-2">About</a>
             <a href="#" className="text-gray-700 dark:text-gray-300 hover:text-primary-700 dark:hover:text-primary-400 px-3 py-2">Contact</a>
-            <button className="btn btn-outline ml-2" onClick={()=>navigate('./auth')}>Sign In</button>
-            <button className="btn btn-primary">Register</button>
+            <button className="btn btn-primary ml-2" onClick={()=>navigate('./auth')}>Sign In/Register</button>
             <ThemeToggle />
           </div>
         </div>
@@ -55,8 +54,7 @@ const Navbar = () => {
           <a href="#" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-bg">About</a>
           <a href="#" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-bg">Contact</a>
           <div className="flex flex-col space-y-2 pt-2">
-            <button className="btn btn-outline">Sign In</button>
-            <button className="btn btn-primary">Register</button>
+            <button className="btn btn-primary ml-2" onClick={()=>navigate('./auth')}>Sign In/Register</button>
             <ThemeToggle />
           </div>
         </div>

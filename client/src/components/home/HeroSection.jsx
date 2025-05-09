@@ -6,14 +6,11 @@ import FloatingDecoration from '../ui/FloatingDecoration';
 const HeroSection = () => {
     return (
         <section className="relative overflow-hidden bg-gradient-to-br from-primary-900 to-primary-700 dark:from-primary-900 dark:to-primary-800 min-h-screen flex items-center">
-        {/* Background pattern overlay */}
         <GridBackground />
 
-        {/* Floating decoration elements */}
         <FloatingDecoration />
 
         <div className="relative w-full max-w-7xl mx-auto px-4 py-16 flex flex-col md:flex-row items-center">
-          {/* Text content */}
           <motion.div 
             className="text-center md:text-left mb-12 md:mb-0 md:w-1/2"
             initial={{ opacity: 0, y: 30 }}

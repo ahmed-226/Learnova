@@ -4,7 +4,6 @@ const ThemeToggle=()=> {
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
-    // Check for dark mode preference
     const isDark = localStorage.getItem('darkMode') === 'true' || 
                   window.matchMedia('(prefers-color-scheme: dark)').matches;
     

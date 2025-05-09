@@ -8,7 +8,6 @@ const RegisterForm = () => {
   const handleRegister = (e) => {
     e.preventDefault();
     console.log('Register submitted:', { name, email, password });
-    // Add registration logic here
   };
 
   return (

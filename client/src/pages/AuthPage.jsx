@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import LoginForm from '../../components/auth/LoginForm';
-import RegisterForm from '../../components/auth/RegisterForm';
-import GridBackground from '../../components/ui/GridBackground';
-import FloatingDecoration from '../../components/ui/FloatingDecoration';
+import LoginForm from '../components/auth/LoginForm';
+import RegisterForm from '../components/auth/RegisterForm';
+import GridBackground from '../components/ui/GridBackground';
+import FloatingDecoration from '../components/ui/FloatingDecoration';
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -14,10 +14,8 @@ const AuthPage = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-primary-900 to-primary-700 dark:from-primary-900 dark:to-primary-800 relative overflow-hidden">
-      {/* Background pattern overlay */}
       <GridBackground />
 
-      {/* Floating decoration elements - fixed positioning and z-index */}
       <FloatingDecoration />
 
 
