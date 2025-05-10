@@ -96,4 +96,74 @@ const enrolledCourses = [
     }
   ];
 
-export { features, popularCourses, TestimonialCards, enrolledCourses };
+const teamMembers = [
+        {
+            id: 1,
+            name: "Sarah Johnson",
+            role: "Founder & CEO",
+            bio: "With over 15 years of experience in education technology, Sarah founded Learnova with a mission to make quality education accessible to everyone.",
+            avatar: "https://randomuser.me/api/portraits/women/33.jpg",
+            social: {
+                linkedin: "#",
+                twitter: "#"
+            }
+        },
+        {
+            id: 2,
+            name: "David Chen",
+            role: "Chief Technology Officer",
+            bio: "David leads our engineering team with a focus on creating intuitive, responsive learning platforms that adapt to each student's needs.",
+            avatar: "https://randomuser.me/api/portraits/men/52.jpg",
+            social: {
+                linkedin: "#",
+                github: "#"
+            }
+        },
+        {
+            id: 3,
+            name: "Maya Patel",
+            role: "Head of Content",
+            bio: "Maya ensures that all Learnova courses maintain the highest educational standards while remaining engaging and practical.",
+            avatar: "https://randomuser.me/api/portraits/women/44.jpg",
+            social: {
+                linkedin: "#",
+                twitter: "#"
+            }
+        },
+        {
+            id: 4,
+            name: "James Wilson",
+            role: "User Experience Director",
+            bio: "James works to ensure that every student's journey through the platform is seamless, intuitive, and enjoyable.",
+            avatar: "https://randomuser.me/api/portraits/men/46.jpg",
+            social: {
+                linkedin: "#",
+                dribbble: "#"
+            }
+        }
+    ];
+
+const stories=[
+                                        {
+                                            year: "2020",
+                                            title: "The Beginning",
+                                            content: "Founded with a simple idea: create a learning platform that adapts to each student's unique needs and learning style."
+                                        },
+                                        {
+                                            year: "2021",
+                                            title: "Rapid Growth",
+                                            content: "Expanded from a small collection of programming courses to 50+ courses across multiple disciplines."
+                                        },
+                                        {
+                                            year: "2022",
+                                            title: "Global Reach",
+                                            content: "Reached students in over 120 countries, with courses available in 8 different languages."
+                                        },
+                                        {
+                                            year: "2023",
+                                            title: "Innovation Focus",
+                                            content: "Launched AI-powered learning pathways and personalized recommendation engine."
+                                        }
+                                    ]
+
+export { features, popularCourses, TestimonialCards, enrolledCourses, teamMembers, stories };
