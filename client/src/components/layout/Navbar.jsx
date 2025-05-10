@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import ThemeToggle from '../common/ThemeToggle';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const navigate = useNavigate();
   
   return (
     <nav className="bg-white dark:bg-dark-card shadow-sm border-b border-gray-100 dark:border-dark-border sticky top-0 z-50">
@@ -36,7 +35,7 @@ const Navbar = () => {
             <a href="#" className="text-gray-700 dark:text-gray-300 hover:text-primary-700 dark:hover:text-primary-400 px-3 py-2">Courses</a>
             <a href="#" className="text-gray-700 dark:text-gray-300 hover:text-primary-700 dark:hover:text-primary-400 px-3 py-2">About</a>
             <a href="#" className="text-gray-700 dark:text-gray-300 hover:text-primary-700 dark:hover:text-primary-400 px-3 py-2">Contact</a>
-            <button className="btn btn-primary ml-2" onClick={()=>navigate('./auth')}>Sign In/Register</button>
+            <button className="btn btn-primary ml-2" >Sign In/Register</button>
             <ThemeToggle />
           </div>
         </div>
@@ -54,7 +53,9 @@ const Navbar = () => {
           <a href="#" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-bg">About</a>
           <a href="#" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-bg">Contact</a>
           <div className="flex flex-col space-y-2 pt-2">
-            <button className="btn btn-primary ml-2" onClick={()=>navigate('./auth')}>Sign In/Register</button>
+              <Link to="/auth" className="btn btn-primary ml-2">
+                              Sign In/Register
+              </Link>
             <ThemeToggle />
           </div>
         </div>
