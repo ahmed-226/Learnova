@@ -4,118 +4,21 @@ import { motion } from 'framer-motion';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import CourseCard from '../components/ui/CourseCard';
+import {mockCourse, relatedCourses} from '../data/main.js'; 
 
-// Mock data for demonstration
-const mockCourse = {
-  id: 1,
-  title: "Complete Web Development Bootcamp",
-  description: "Learn web development from scratch. This comprehensive course covers HTML, CSS, JavaScript, React, Node.js and more. You'll build real projects and gain practical skills needed to become a professional web developer.",
-  category: "Development",
-  level: "Beginner",
-  price: 89.99,
-  originalPrice: 129.99,
-  coverImage: "https://images.unsplash.com/photo-1593720213428-28a5b9e94613?ixlib=rb-1.2.1&auto=format&fit=crop&w=1170&q=80",
-  instructor: {
-    firstName: "John",
-    lastName: "Doe",
-    avatar: "https://randomuser.me/api/portraits/men/32.jpg"
-  },
-  _count: {
-    lessons: 42,
-    quizzes: 12,
-    assignments: 8,
-    progress: 1248
-  },
-  modules: [
-    {
-      id: 1,
-      title: "Introduction to Web Development",
-      order: 1,
-      description: "Learn the basics of how the web works and set up your development environment.",
-      lessons: [
-        { id: 1, title: "How the Internet Works" },
-        { id: 2, title: "Setting Up Your Dev Environment" },
-        { id: 3, title: "Introduction to Web Browsers" }
-      ]
-    },
-    {
-      id: 2,
-      title: "HTML Fundamentals",
-      order: 2,
-      description: "Learn the building blocks of web pages and structure content properly.",
-      lessons: [
-        { id: 4, title: "HTML Document Structure" },
-        { id: 5, title: "Working with Text Elements" },
-        { id: 6, title: "Links and Navigation" },
-        { id: 7, title: "Images and Media" }
-      ],
-      quizzes: [
-        { id: 1, title: "HTML Basics Quiz" }
-      ]
-    },
-    {
-      id: 3,
-      title: "CSS Styling",
-      order: 3,
-      description: "Make your websites beautiful with CSS styling techniques.",
-      lessons: [
-        { id: 8, title: "CSS Selectors" },
-        { id: 9, title: "Box Model" },
-        { id: 10, title: "Layout and Positioning" },
-        { id: 11, title: "Flexbox and Grid" }
-      ],
-      assignments: [
-        { id: 1, title: "Build a Responsive Layout" }
-      ]
-    }
-  ]
-};
 
-// Mock related courses
-const relatedCourses = [
-  {
-    id: 2,
-    title: "JavaScript Mastery",
-    instructor: "Sarah Johnson",
-    rating: 4.7,
-    studentsCount: 842,
-    price: 79.99,
-    coverImage: "https://images.unsplash.com/photo-1555099962-4199c345e5dd?ixlib=rb-1.2.1&auto=format&fit=crop&w=1170&q=80",
-    category: "Development"
-  },
-  {
-    id: 3,
-    title: "React Frontend Development",
-    instructor: "Michael Chen",
-    rating: 4.9,
-    studentsCount: 1203,
-    price: 94.99,
-    coverImage: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?ixlib=rb-1.2.1&auto=format&fit=crop&w=1170&q=80",
-    category: "Development"
-  },
-  {
-    id: 4,
-    title: "Node.js Backend Development",
-    instructor: "Emily Wilson",
-    rating: 4.8,
-    studentsCount: 723,
-    price: 84.99,
-    coverImage: "https://images.unsplash.com/photo-1618477247222-acbdb0e159b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=1170&q=80",
-    category: "Development"
-  }
-];
 
 const CourseDetailsPage = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
   
-  // State variables with mock data instead of API calls
+  
   const [course] = useState(mockCourse);
   const [activeModule, setActiveModule] = useState(null);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [enrollmentLoading, setEnrollmentLoading] = useState(false);
   
-  // Handle module click to expand/collapse
+  
   const toggleModule = (moduleId) => {
     if (activeModule === moduleId) {
       setActiveModule(null);
@@ -124,10 +27,10 @@ const CourseDetailsPage = () => {
     }
   };
 
-  // Handle enrollment (placeholder functionality)
+  
   const handleEnrollment = () => {
     setEnrollmentLoading(true);
-    // Simulate API call
+    
     setTimeout(() => {
       setIsEnrolled(true);
       setEnrollmentLoading(false);
@@ -400,7 +303,15 @@ const CourseDetailsPage = () => {
                   <div className="card mt-8">
                     <div className="flex justify-between items-center mb-6">
                       <h2 className="text-2xl font-bold">Course Forum</h2>
-                      <button className="btn btn-outline">View All Discussions</button>
+                      <Link 
+                        to={`/courses/${courseId}/forum`}
+                        className="btn btn-outline flex items-center"
+                      >
+                        <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        Discussion Forum
+                      </Link>
                     </div>
                     
                     <div className="space-y-4">

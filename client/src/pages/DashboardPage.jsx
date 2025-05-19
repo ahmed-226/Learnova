@@ -7,6 +7,7 @@ import DashboardStats from '../components/dashboard/DashboardStats';
 import RecentActivityCard from '../components/dashboard/RecentActivityCard';
 import UpcomingLessonCard from '../components/dashboard/UpcomingLessonCard';
 import PopularCoursesCard from '../components/dashboard/PopularCoursesCard';
+import { instructorCourses, recentActivities, upcomingLessons } from '../data/main.js';
 
 const DashboardPage = () => {
   const [welcomeMessage, setWelcomeMessage] = useState(() => {
@@ -16,77 +17,15 @@ const DashboardPage = () => {
     return 'Good evening';
   });
   
-  // Mock data - in a real app, this would come from an API
   const userData = {
     name: "Alex Johnson",
     avatar: "https://randomuser.me/api/portraits/men/44.jpg",
-    role: "INSTRUCTOR", // Changed to INSTRUCTOR for demonstration
+    role: "INSTRUCTOR",
     courseProgress: 68,
     hoursSpent: 42,
     certificatesEarned: 1,
     averageScore: 89
   };
-
-  // Mock instructor courses
-  const instructorCourses = [
-    {
-      id: 1,
-      title: "Web Development Masterclass",
-      enrollmentCount: 128,
-      moduleCount: 8,
-      lastUpdated: "2 days ago"
-    },
-    {
-      id: 2,
-      title: "JavaScript Algorithms & Data Structures",
-      enrollmentCount: 94,
-      moduleCount: 6,
-      lastUpdated: "1 week ago"
-    }
-  ];
-  
-  const recentActivities = [
-    { 
-      id: 1, 
-      type: 'course-progress', 
-      courseName: 'Web Development Bootcamp', 
-      progress: 75, 
-      date: '2 hours ago',
-      icon: 'book-open'
-    },
-    { 
-      id: 2, 
-      type: 'quiz-completed', 
-      courseName: 'Data Science Fundamentals', 
-      score: 92, 
-      date: 'Yesterday',
-      icon: 'check-circle'
-    },
-    { 
-      id: 3, 
-      type: 'assignment-submitted', 
-      courseName: 'UX Design Principles', 
-      date: '3 days ago',
-      icon: 'clipboard'
-    }
-  ];
-  
-  const upcomingLessons = [
-    {
-      id: 1,
-      title: "Advanced CSS Layouts",
-      courseName: "Web Development Bootcamp",
-      date: "Tomorrow, 10:00 AM",
-      duration: "45 min"
-    },
-    {
-      id: 2,
-      title: "Data Visualization with D3.js",
-      courseName: "Data Science Fundamentals",
-      date: "Thu, 2:00 PM",
-      duration: "60 min"
-    }
-  ];
 
   const isInstructor = userData.role === "student";
 
