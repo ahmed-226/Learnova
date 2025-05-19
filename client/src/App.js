@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import HomePage from './pages/HomePage.jsx';
@@ -8,6 +9,9 @@ import AboutPage from './pages/AboutPage.jsx';
 import ContactPage from './pages/ContactPage.jsx';
 import CoursesPage from './pages/CoursesPage.jsx';
 import CourseDetailsPage from './pages/CourseDetailsPage.jsx';
+import CourseContentPage from './pages/CourseContentPage.jsx';
+import ForumPage from './pages/ForumPage.jsx';
+import ThreadPage from './pages/ThreadPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 
 function App() {
@@ -19,10 +23,17 @@ function App() {
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contact" element={<ContactPage />} />
+
           <Route path="/courses" element={<CoursesPage />} />
           <Route path="/courses/:courseId" element={<CourseDetailsPage />} />
+          <Route path="/courses/:courseId/:contentType/:contentId" element={<CourseContentPage />} />
+          
+          <Route path="/courses/:courseId/forum" element={<ForumPage />} />
+          <Route path="/courses/:courseId/forum/thread/:threadId" element={<ThreadPage />} />
+          
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>
