@@ -13,6 +13,8 @@ import CourseContentPage from './pages/CourseContentPage.jsx';
 import ForumPage from './pages/ForumPage.jsx';
 import ThreadPage from './pages/ThreadPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
+import CreateCoursePage from './pages/CreateCoursePage.jsx';
+import CourseModuleManagementPage from './pages/CourseModuleManagementPage.jsx';
 
 function App() {
   return (
@@ -34,6 +36,9 @@ function App() {
           <Route path="/courses/:courseId/forum" element={<ForumPage />} />
           <Route path="/courses/:courseId/forum/thread/:threadId" element={<ThreadPage />} />
           
+          <Route path="/create-course" element={<CreateCoursePage />} />
+          <Route path="/courses/:courseId/modules" element={<CourseModuleManagementPage />} />
+
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>
