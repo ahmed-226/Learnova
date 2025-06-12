@@ -91,6 +91,8 @@ const getUserById = async (userId) => {
         email: true,
         firstName: true,
         lastName: true,
+        bio: true,
+        avatar: true, 
         role: true,
         createdAt: true
       }
@@ -152,10 +154,9 @@ const updateUser = async (userId, userData) => {
   }
 };
 
-
 const updateProfile = async (userId, userData) => {
   try {
-    // Check if user exists
+    
     const existingUser = await prisma.user.findUnique({
       where: { id: userId }
     });
@@ -166,16 +167,14 @@ const updateProfile = async (userId, userData) => {
       throw error;
     }
     
-    // Handle password change with verification
+    
     if (userData.password) {
-      // If changing password, current password must be provided and valid
       if (!userData.currentPassword) {
         const error = new Error('Current password is required');
         error.status = 400;
         throw error;
       }
       
-      // Verify current password
       const hashedCurrentPassword = hashPassword(userData.currentPassword);
       if (existingUser.password !== hashedCurrentPassword) {
         const error = new Error('Current password is incorrect');
@@ -183,19 +182,20 @@ const updateProfile = async (userId, userData) => {
         throw error;
       }
       
-      // If verification passes, update with new hashed password
       userData.password = hashPassword(userData.password);
-      delete userData.currentPassword; // Remove from update data
+      delete userData.currentPassword;
     }
     
-    // Prepare update data (similar to updateUser)
+    
     const updateData = {};
     
     if (userData.firstName) updateData.firstName = userData.firstName;
     if (userData.lastName) updateData.lastName = userData.lastName;
-    if (userData.password) updateData.password = userData.password; // Already hashed above
+    if (userData.password) updateData.password = userData.password; 
+    if (userData.bio !== undefined) updateData.bio = userData.bio; 
+    if (userData.avatar !== undefined) updateData.avatar = userData.avatar; 
     
-    // Update user
+    
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: updateData,
@@ -204,6 +204,8 @@ const updateProfile = async (userId, userData) => {
         email: true,
         firstName: true,
         lastName: true,
+        bio: true,
+        avatar: true, 
         role: true,
         createdAt: true,
         updatedAt: true
