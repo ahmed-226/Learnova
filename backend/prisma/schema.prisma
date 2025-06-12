@@ -17,9 +17,11 @@ model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
   password  String
-  role      UserRole
+  role      UserRole @default(STUDENT)
   firstName String
   lastName  String
+  bio       String?
+  avatar       String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   // Relations
