@@ -5,28 +5,80 @@ const logger = require('../../utils/logger');
 const { ROLES, PERMISSION_LEVELS, HTTP_STATUS } = require('../../utils/constants');
 
 
+
 const register = async (req, res, next) => {
   try {
     const user = await userService.createUser(req.body);
-    const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
-    logger.info(`New user registered: ${user.email} with role ${user.role}`);
-    res.status(HTTP_STATUS.CREATED).json({ user: { id: user.id, email: user.email, role: user.role }, token });
+    const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    
+    
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', 
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 
+    });
+    
+    logger.info(`User registered: ${user.email}`);
+    res.status(HTTP_STATUS.CREATED).json({ 
+      user: { 
+        id: user.id, 
+        email: user.email, 
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role 
+      },
+      message: 'Registration successful'
+    });
   } catch (error) {
     logger.error(`Registration failed: ${error.message}`);
     next(error);
   }
 };
 
-
 const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
-    const user = await userService.verifyCredentials(email, password);
-    const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
+    const user = await userService.verifyCredentials(req.body.email, req.body.password);
+    const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    
+    
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 
+    });
+    
     logger.info(`User logged in: ${user.email}`);
-    res.status(HTTP_STATUS.OK).json({ user: { id: user.id, email: user.email, role: user.role }, token });
+    res.status(HTTP_STATUS.OK).json({ 
+      user: { 
+        id: user.id, 
+        email: user.email, 
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role 
+      },
+      message: 'Login successful'
+    });
   } catch (error) {
     logger.error(`Login failed: ${error.message}`);
+    next(error);
+  }
+};
+
+const logout = async (req, res, next) => {
+  try {
+    
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
+    });
+    
+    logger.info(`User logged out: ${req.user?.id}`);
+    res.status(HTTP_STATUS.OK).json({ message: 'Logout successful' });
+  } catch (error) {
+    logger.error(`Logout failed: ${error.message}`);
     next(error);
   }
 };
@@ -126,7 +178,7 @@ const checkRole = (requiredRole) => {
       return res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: 'Authentication required' });
     }
     
-    // Access granted if user's permission level is >= required level
+    
     const userPermissionLevel = PERMISSION_LEVELS[userRole];
     const requiredPermissionLevel = PERMISSION_LEVELS[requiredRole];
     
@@ -139,11 +191,39 @@ const checkRole = (requiredRole) => {
   };
 };
 
+const uploadAvatar = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    
+    const avatarPath = `/uploads/avatars/${req.file.filename}`;
+    
+    
+    const updatedUser = await userService.updateProfile(req.user.id, {
+      avatar: avatarPath
+    });
+
+    logger.info(`Avatar uploaded for user ${req.user.id}`);
+    res.status(200).json({ 
+      avatar: avatarPath,
+      user: updatedUser,
+      message: 'Avatar uploaded successfully' 
+    });
+  } catch (error) {
+    logger.error(`Error uploading avatar for user ${req.user.id}: ${error.message}`);
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
+  logout,
   getProfile,
   updateProfile,
+  uploadAvatar,
   getDashboard,
   getAllUsers,
   getUserById,
