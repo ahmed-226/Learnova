@@ -18,6 +18,7 @@ const updateProfile = Joi.object({
   firstName: Joi.string(),
   lastName: Joi.string(),
   password: Joi.string().min(6),
+  bio: Joi.string().allow('').max(500), 
   currentPassword: Joi.string().when('password', {
     is: Joi.exist(),
     then: Joi.required(),
@@ -28,6 +29,7 @@ const updateProfile = Joi.object({
 const updateUser = Joi.object({
   firstName: Joi.string(),
   lastName: Joi.string(),
+  bio: Joi.string().allow('').max(500),
   role: Joi.string().valid('STUDENT', 'INSTRUCTOR', 'ADMIN'),
   password: Joi.string().min(6)
 }).min(1);
