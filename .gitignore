@@ -12,6 +12,7 @@ node_modules
 /coverage
 
 /build
+uploads/
 
 .DS_Store
 .env.local
