@@ -1,14 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import CourseCard from '../components/profile/CourseCard';
+import ChangePasswordModal from '../components/profile/ChangePasswordModal';
+import DeleteAccountModal from '../components/profile/DeleteAccountModal';
+
+
 
 const ProfilePage = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const fileInputRef = useRef(null);
-  const { user: authUser, api, loading } = useAuth();
+  const { user: authUser, api, loading,logout } = useAuth();
+  const navigate = useNavigate();
   
   const [user, setUser] = useState(null);
   const [userStats, setUserStats] = useState(null);
@@ -16,6 +22,8 @@ const ProfilePage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     firstName: '',
@@ -158,7 +166,7 @@ const ProfilePage = () => {
         
         setUser(prev => ({
           ...prev,
-          avatar: `http://localhost:5000${response.data.avatar}`
+          avatar: response.data.avatar 
         }));
         
         setError(null); 
@@ -207,6 +215,38 @@ const ProfilePage = () => {
       setError(error.response?.data?.error || 'Failed to update profile');
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleChangePassword = async (currentPassword, newPassword) => {
+    try {
+      await api.post('/users/change-password', {
+        currentPassword,
+        newPassword
+      });
+      
+      alert('Password changed successfully! You will receive a confirmation email.');
+    } catch (error) {
+      console.error('Error changing password:', error);
+      throw error; 
+    }
+  };
+
+  const handleDeleteAccount = async (password) => {
+    try {
+      
+      console.log("Attempting to delete account with password:", password ? "Password provided" : "No password!");
+      
+      await api.post('/users/delete-account', { password });
+      
+      await logout();
+      
+      navigate('/', {
+        state: { message: 'Your account has been deleted successfully.' } 
+      });
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      throw error;
     }
   };
 
@@ -617,7 +657,9 @@ const ProfilePage = () => {
                     <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
                       Change your password to keep your account secure.
                     </p>
-                    <button className="btn btn-outline w-full">
+                    <button 
+                      onClick={() => setIsPasswordModalOpen(true)}
+                      className="btn btn-outline w-full">
                       Change Password
                     </button>
                   </div>
@@ -627,9 +669,12 @@ const ProfilePage = () => {
                     <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
                       Once you delete your account, there is no going back. Please be certain.
                     </p>
-                    <button className="btn bg-red-600 hover:bg-red-700 text-white w-full">
-                      Delete Account
-                    </button>
+                      <button 
+                        onClick={() => setIsDeleteModalOpen(true)}
+                        className="btn bg-red-600 hover:bg-red-700 text-white w-full">
+                        Delete Account
+                      </button>
+
                   </div>
                 </div>
               </div>
@@ -639,6 +684,17 @@ const ProfilePage = () => {
       </div>
       
       <Footer />
+        <ChangePasswordModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        onSubmit={handleChangePassword}
+      />
+
+      <DeleteAccountModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onDelete={handleDeleteAccount}
+      />
     </div>
   );
 };
