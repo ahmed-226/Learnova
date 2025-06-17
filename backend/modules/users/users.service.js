@@ -366,6 +366,61 @@ const getUserDashboard = async (userId) => {
   }
 };
 
+const changePassword = async (userId, currentPassword, newPassword) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+    
+    if (!user) {
+      const error = new Error('User not found');
+      error.status = 404;
+      throw error;
+    }
+    
+    const hashedCurrentPassword = hashPassword(currentPassword);
+    if (user.password !== hashedCurrentPassword) {
+      const error = new Error('Current password is incorrect');
+      error.status = 401;
+      throw error;
+    }
+    
+    const hashedNewPassword = hashPassword(newPassword);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedNewPassword }
+    });
+    
+    logger.info(`Password change notification would be sent to: ${user.email}`);
+    
+    return { success: true };
+  } catch (error) {
+    logger.error(`Error changing password: ${error.message}`);
+    throw error;
+  }
+};
+
+
+
+const verifyUserPassword = async (userId, password) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+    
+    if (!user) {
+      return false;
+    }
+    
+    const hashedPassword = hashPassword(password);
+    return user.password === hashedPassword;
+  } catch (error) {
+    logger.error(`Error verifying password: ${error.message}`);
+    return false;
+  }
+};
+
+
 module.exports = {
   createUser,
   verifyCredentials,
@@ -374,5 +429,7 @@ module.exports = {
   updateProfile,
   deleteUser,
   getAllUsers,
-  getUserDashboard
+  getUserDashboard,
+  changePassword,
+  verifyUserPassword
 };

@@ -193,26 +193,93 @@ const checkRole = (requiredRole) => {
 
 const uploadAvatar = async (req, res, next) => {
   try {
+    // Debug the environment variables
+    console.log({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET ? '***' : 'missing'
+    });
+    
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
-
     
-    const avatarPath = `/uploads/avatars/${req.file.filename}`;
-    
+    // Cloudinary already uploaded the file, we just need the URL
+    const avatarUrl = req.file.path;
     
     const updatedUser = await userService.updateProfile(req.user.id, {
-      avatar: avatarPath
+      avatar: avatarUrl
     });
 
     logger.info(`Avatar uploaded for user ${req.user.id}`);
     res.status(200).json({ 
-      avatar: avatarPath,
+      avatar: avatarUrl,
       user: updatedUser,
       message: 'Avatar uploaded successfully' 
     });
   } catch (error) {
     logger.error(`Error uploading avatar for user ${req.user.id}: ${error.message}`);
+    next(error);
+  }
+};
+
+const changePassword = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+        error: 'Current password and new password are required' 
+      });
+    }
+    
+    if (newPassword.length < 6) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+        error: 'New password must be at least 6 characters long' 
+      });
+    }
+    
+    await userService.changePassword(userId, currentPassword, newPassword);
+    
+    logger.info(`Password changed for user ${userId}`);
+    res.status(HTTP_STATUS.OK).json({ 
+      message: 'Password changed successfully' 
+    });
+  } catch (error) {
+    logger.error(`Error changing password for user ${req.user.id}: ${error.message}`);
+    next(error);
+  }
+};
+
+const deleteUserAccount = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { password } = req.body;
+    
+    
+    const isPasswordValid = await userService.verifyUserPassword(userId, password);
+    
+    if (!isPasswordValid) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({ 
+        error: 'Password is incorrect' 
+      });
+    }
+    
+    await userService.deleteUser(userId);
+    
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
+    });
+    
+    logger.info(`User ${userId} deleted their own account`);
+    res.status(HTTP_STATUS.OK).json({ 
+      message: 'Account has been deleted successfully' 
+    });
+  } catch (error) {
+    logger.error(`Error deleting account for user ${req.user.id}: ${error.message}`);
     next(error);
   }
 };
@@ -229,5 +296,7 @@ module.exports = {
   getUserById,
   updateUser,
   deleteUser,
-  checkRole
+  checkRole,
+  changePassword,
+  deleteUserAccount
 };

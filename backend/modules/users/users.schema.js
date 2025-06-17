@@ -34,9 +34,24 @@ const updateUser = Joi.object({
   password: Joi.string().min(6)
 }).min(1);
 
+const changePassword = Joi.object({
+  currentPassword: Joi.string().required(),
+  newPassword: Joi.string().min(6).required()
+});
+
+const deleteAccount = Joi.object({
+  password: Joi.string().required()
+});
+
+
+
+
+
 module.exports = {
   register,
   login,
   updateProfile,
-  updateUser
+  updateUser,
+  changePassword,
+  deleteAccount,
 };
