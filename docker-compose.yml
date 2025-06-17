@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14
+    container_name: learnova-postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: learnova
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - learnova-network
+
+  backend:
+    build:
+      context: ./backend
+    container_name: learnova-backend
+    restart: always
+    ports:
+      - "5001:5000"
+    depends_on:
+      - postgres
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/learnova
+      NODE_ENV: development
+    volumes:
+      - ./backend:/app
+      - backend-node-modules:/app/node_modules
+    networks:
+      - learnova-network
+    command: >
+      sh -c "
+        echo 'Waiting for postgres to be ready...' &&
+        sleep 5 &&
+        npx prisma migrate deploy &&
+        npm run dev
+      "
+
+  frontend:
+    build:
+      context: ./client
+    container_name: learnova-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      REACT_APP_API_URL: http://localhost:5001/api
+    volumes:
+      - ./client:/app
+      - frontend-node-modules:/app/node_modules
+    networks:
+      - learnova-network
+
+networks:
+  learnova-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  backend-node-modules:
+  frontend-node-modules:
