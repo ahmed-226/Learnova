@@ -3,10 +3,12 @@ import { motion } from 'framer-motion';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import CourseCard from '../components/ui/CourseCard';
-import { popularCourses } from '../data/main.js';
+import { useAuth } from '../contexts/AuthContext';
 
 const CoursesPage = () => {
-  // State variables
+  const { api } = useAuth();
+  
+  
   const [courses, setCourses] = useState([]);
   const [trendingCourses, setTrendingCourses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,43 +23,99 @@ const CoursesPage = () => {
     limit: 9,
     totalPages: 1,
   });
+  const [sortBy, setSortBy] = useState('createdAt:desc'); 
 
-  // Categories and levels for filters
+  
   const categories = ['All', 'Development', 'Design', 'Business', 'Marketing', 'Data Science', 'Language'];
   const levels = ['All', 'Beginner', 'Intermediate', 'Advanced'];
   const priceOptions = ['All', 'Free', 'Paid'];
 
-  // Fetch courses (in a real application, this would call your API)
+  
   useEffect(() => {
-    // Simulate API call
-    setIsLoading(true);
-    setTimeout(() => {
-      // This would be replaced with actual API call using filters and pagination
-      // Example: fetchCourses(searchTerm, filters, pagination.page, pagination.limit)
-      setCourses(popularCourses);
-      setTrendingCourses(popularCourses.slice(0, 3));
-      setPagination({
-        page: 1,
-        limit: 9,
-        totalPages: Math.ceil(popularCourses.length / 9),
-      });
-      setIsLoading(false);
-    }, 800);
-  }, [searchTerm, filters, pagination.page]);
+    const fetchCourses = async () => {
+      setIsLoading(true);
+      try {
+        
+        const params = new URLSearchParams();
+        params.append('page', pagination.page);
+        params.append('limit', pagination.limit);
+        
+        if (searchTerm) {
+          params.append('search', searchTerm);
+        }
+        
+        if (filters.category !== 'all') {
+          params.append('category', filters.category);
+        }
+        
+        if (filters.level !== 'all') {
+          params.append('level', filters.level);
+        }
+        
+        if (filters.price !== 'all') {
+          params.append('isFree', filters.price === 'free');
+        }
+        
+        const [sort, order] = sortBy.split(':');
+        params.append('sortBy', sort);
+        params.append('order', order);
+        
+        
+        const response = await api.get(`/courses?${params.toString()}`);
+        
+        setCourses(response.data.courses);
+        setPagination({
+          page: response.data.pagination.page,
+          limit: response.data.pagination.limit,
+          totalPages: response.data.pagination.totalPages,
+        });
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+        
+        setCourses([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  // Handle search input change
+    const fetchTrendingCourses = async () => {
+      try {
+        
+        const response = await api.get('/courses?sortBy=enrollmentCount&order=desc&limit=3');
+        setTrendingCourses(response.data.courses);
+      } catch (error) {
+        console.error('Error fetching trending courses:', error);
+        setTrendingCourses([]);
+      }
+    };
+    
+    fetchCourses();
+    
+    
+    if (pagination.page === 1) {
+      fetchTrendingCourses();
+    }
+  }, [api, searchTerm, filters, pagination.page, pagination.limit, sortBy]);
+
+  
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
-    setPagination({ ...pagination, page: 1 }); // Reset to first page on new search
+    setPagination({ ...pagination, page: 1 }); 
   };
 
-  // Handle filter change
+  
   const handleFilterChange = (filterType, value) => {
     setFilters({ ...filters, [filterType]: value });
-    setPagination({ ...pagination, page: 1 }); // Reset to first page on filter change
+    setPagination({ ...pagination, page: 1 }); 
   };
 
-  // Handle pagination
+  
+  const handleSortChange = (e) => {
+    setSortBy(e.target.value);
+    setPagination({ ...pagination, page: 1 }); 
+  };
+
+  
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
       setPagination({ ...pagination, page: newPage });
@@ -112,26 +170,40 @@ const CoursesPage = () => {
         </section>
         
         {/* Trending Courses Section */}
-        <section className="py-12 bg-white dark:bg-dark-card">
-          <div className="container mx-auto px-4 max-w-7xl">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className="flex justify-between items-center mb-8">
-                <h2 className="text-2xl md:text-3xl font-bold">Trending Now</h2>
-                <a href="#all-courses" className="text-primary-600 dark:text-primary-400 hover:underline">View all courses</a>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {trendingCourses.map((course, index) => (
-                  <CourseCard key={`trending-${index}`} {...course} />
-                ))}
-              </div>
-            </motion.div>
-          </div>
-        </section>
+        {trendingCourses.length > 0 && !searchTerm && filters.category === 'all' && filters.level === 'all' && filters.price === 'all' && (
+          <section className="py-12 bg-white dark:bg-dark-card">
+            <div className="container mx-auto px-4 max-w-7xl">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <div className="flex justify-between items-center mb-8">
+                  <h2 className="text-2xl md:text-3xl font-bold">Trending Now</h2>
+                  <a href="#all-courses" className="text-primary-600 dark:text-primary-400 hover:underline">View all courses</a>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {trendingCourses.map((course) => (
+                    <CourseCard 
+                      key={course.id}
+                      id={course.id}
+                      title={course.title}
+                      instructor={course.instructor ? `${course.instructor.firstName} ${course.instructor.lastName}` : 'Instructor'}
+                      rating={course.rating || 0}
+                      price={course.price}
+                      isFree={course.isFree}
+                      level={course.level}
+                      studentsCount={course._count?.progress || 0}
+                      coverImage={course.coverImage || 'https://via.placeholder.com/300x200?text=No+Image'}
+                      category={course.category}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+          </section>
+        )}
         
         {/* Main Content with Sidebar */}
         <section id="all-courses" className="py-16 bg-primary-50 dark:bg-dark-bg">
@@ -234,12 +306,17 @@ const CoursesPage = () => {
                   <h2 className="text-2xl font-bold">All Courses</h2>
                   <div className="flex items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">Sort by:</span>
-                    <select className="bg-white dark:bg-dark-card border border-gray-300 dark:border-gray-700 rounded-md px-2 py-1 text-sm">
-                      <option>Most Popular</option>
-                      <option>Newest</option>
-                      <option>Highest Rated</option>
-                      <option>Price: Low to High</option>
-                      <option>Price: High to Low</option>
+                    <select 
+                      value={sortBy}
+                      onChange={handleSortChange}
+                      className="bg-white dark:bg-dark-card border border-gray-300 dark:border-gray-700 rounded-md px-2 py-1 text-sm"
+                    >
+                      <option value="createdAt:desc">Newest</option>
+                      <option value="createdAt:asc">Oldest</option>
+                      <option value="price:asc">Price: Low to High</option>
+                      <option value="price:desc">Price: High to Low</option>
+                      <option value="title:asc">Title: A-Z</option>
+                      <option value="title:desc">Title: Z-A</option>
                     </select>
                   </div>
                 </div>
@@ -250,8 +327,20 @@ const CoursesPage = () => {
                   </div>
                 ) : courses.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {courses.map((course, index) => (
-                      <CourseCard key={index} {...course} />
+                    {courses.map((course) => (
+                      <CourseCard 
+                        key={course.id}
+                        id={course.id}
+                        title={course.title}
+                        instructor={course.instructor ? `${course.instructor.firstName} ${course.instructor.lastName}` : 'Instructor'}
+                        rating={course.rating || 0}
+                        price={course.price}
+                        isFree={course.isFree}
+                        level={course.level}
+                        studentsCount={course._count?.progress || 0}
+                        coverImage={course.coverImage || 'https://via.placeholder.com/300x200?text=No+Image'}
+                        category={course.category}
+                      />
                     ))}
                   </div>
                 ) : (
@@ -269,7 +358,7 @@ const CoursesPage = () => {
                 )}
                 
                 {/* Pagination */}
-                {courses.length > 0 && (
+                {courses.length > 0 && pagination.totalPages > 1 && (
                   <div className="mt-12 flex justify-center">
                     <nav className="flex items-center space-x-2">
                       <button 
@@ -317,8 +406,8 @@ const CoursesPage = () => {
           </div>
         </section>
         
-        {/* CTA Section */}
-        <section className="py-16 bg-gradient-to-r from-primary-600 to-secondary-600 dark:from-primary-800 dark:to-secondary-800">
+        {/* Become an Instructor */}
+        <section className="py-12 bg-gradient-to-r from-primary-700 to-primary-800 dark:from-primary-900 dark:to-primary-800">
           <div className="container mx-auto px-4 max-w-7xl">
             <div className="flex flex-col md:flex-row items-center justify-between">
               <div className="mb-8 md:mb-0 text-white">
