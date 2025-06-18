@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { useAuth } from '../contexts/AuthContext';
 
 const CreateCoursePage = () => {
   const navigate = useNavigate();
-  
+  const { api } = useAuth();
+
   
   const [courseData, setCourseData] = useState({
     title: '',
@@ -110,7 +112,7 @@ const CreateCoursePage = () => {
   };
   
   
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateForm()) {
@@ -120,21 +122,34 @@ const CreateCoursePage = () => {
     setIsSubmitting(true);
     
     try {
+      const formData = new FormData();
+      formData.append('title', courseData.title);
+      formData.append('description', courseData.description);
+      formData.append('category', courseData.category);
+      formData.append('level', courseData.level);
+      formData.append('isFree', courseData.isFree);
+      
+      if (!courseData.isFree) {
+        formData.append('price', courseData.price);
+      }
+      
+      if (courseData.coverImage) {
+        formData.append('coverImage', courseData.coverImage);
+      }
+      
+      if (courseData.previewVideo) {
+        formData.append('previewVideo', courseData.previewVideo);
+      }
       
       
+      const response = await api.post('/courses', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       
       
-      
-      
-      
-      
-      
-      
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      
-      
-      navigate('/dashboard', { 
+      navigate(`/courses/${response.data.id}/modules`, { 
         state: { 
           notification: {
             type: 'success',
@@ -150,8 +165,8 @@ const CreateCoursePage = () => {
     } finally {
       setIsSubmitting(false);
     }
-  };
-  
+  }; 
+
   return (
     <div className="flex flex-col min-h-screen bg-primary-50 dark:bg-dark-bg">
       <Navbar />
