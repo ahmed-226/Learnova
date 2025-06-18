@@ -1,7 +1,9 @@
-const { upload } = require('../utils/fileUpload');
+const fileUpload = require('../utils/fileUpload');
 
 module.exports = {
-  avatarUpload: upload.single('avatar'),
-  courseImage: upload.single('coverImage'),
-  multipleFiles: upload.array('files', 5)
+  avatarUpload: fileUpload.avatarUpload,
+  courseImage: fileUpload.courseImageUpload,
+  courseVideo: fileUpload.courseVideoUpload,
+  courseFiles: fileUpload.courseFilesUpload,
+  courseContentUpload: fileUpload.courseContentUpload
 };
