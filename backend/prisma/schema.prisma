@@ -37,15 +37,20 @@ model User {
 model Course {
   id          Int      @id @default(autoincrement())
   title       String
-  description String?
+  description String?  @db.Text
+  category    String?
+  level       String?
+  price       Float    @default(0)
+  isFree      Boolean  @default(false)
+  coverImage  String?
+  previewVideo String?
   instructorId Int
+  instructor   User     @relation("InstructorCourses", fields: [instructorId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  // Relations
-  instructor  User     @relation("InstructorCourses", fields: [instructorId], references: [id])
   modules     Module[]
-  forum       Forum?
   progress    Progress[]
+  forum       Forum?
   @@index([instructorId])
 }
 

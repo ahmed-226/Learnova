@@ -1,27 +1,83 @@
 const prisma = require('../../config/database');
 const logger = require('../../utils/logger');
 const { HTTP_STATUS } = require('../../utils/constants');
+const { uploadToCloudinary } = require('../../utils/fileUpload');
 
-const createCourse = async (courseData,instructorId) => {
-  try{
-    const course=await prisma.course.create({
-      data:{
-        ...courseData,
-        instructorId
+
+const createCourse = async (courseData, instructorId, files) => {
+  try {
+    
+    let coverImageUrl = null;
+    let previewVideoUrl = null;
+    
+    console.log("Files received:", files); 
+    
+    if (files) {
+      if (files.coverImage && files.coverImage[0]) {
+        console.log("Cover image file:", files.coverImage[0]); 
+        
+        
+        if (files.coverImage[0].path) {
+          try {
+            const uploadResult = await uploadToCloudinary(files.coverImage[0].path, {
+              folder: 'learnova/course-covers'
+            });
+            coverImageUrl = uploadResult.url;
+          } catch (uploadError) {
+            console.error("Cloudinary upload error:", uploadError);
+            
+          }
+        } else {
+          console.error("Missing file path for coverImage");
+        }
+      }
+      
+      if (files.previewVideo && files.previewVideo[0]) {
+        console.log("Preview video file:", files.previewVideo[0]); 
+        
+        if (files.previewVideo[0].path) {
+          try {
+            const uploadResult = await uploadToCloudinary(files.previewVideo[0].path, {
+              folder: 'learnova/course-previews',
+              resource_type: 'video'
+            });
+            previewVideoUrl = uploadResult.url;
+          } catch (uploadError) {
+            console.error("Cloudinary upload error:", uploadError);
+            
+          }
+        } else {
+          console.error("Missing file path for previewVideo");
+        }
+      }
+    }
+
+    const course = await prisma.course.create({
+      data: {
+        title: courseData.title,
+        description: courseData.description,
+        category: courseData.category,
+        level: courseData.level,
+        price: courseData.isFree ? 0 : parseFloat(courseData.price),
+        isFree: courseData.isFree === 'true' || courseData.isFree === true,
+        coverImage: coverImageUrl,
+        previewVideo: previewVideoUrl,
+        instructorId: Number(instructorId)
       }
     });
 
     await prisma.forum.create({
-      data:{
-        courseId:course.id
+      data: {
+        courseId: course.id
       }
     });
+    
     return course;
-  }catch(error){
+  } catch (error) {
     logger.error(`Error in createCourse: ${error.message}`);
     throw error;
   }
-}
+};
 
 const getCourseById = async (courseId,instructorDetails=false) => {
   try {

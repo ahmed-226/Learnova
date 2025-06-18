@@ -3,7 +3,15 @@ const { PAGINATION } = require('../../utils/constants');
 
 const createCourse = Joi.object({
   title: Joi.string().required().max(100),
-  description: Joi.string().max(1000),
+  description: Joi.string().required().max(1000),
+  category: Joi.string().required(),
+  level: Joi.string().required(),
+  price: Joi.when('isFree', {
+    is: false,
+    then: Joi.number().required().min(0),
+    otherwise: Joi.optional()
+  }),
+  isFree: Joi.boolean().default(false)
 });
 
 const updateCourse = Joi.object({
