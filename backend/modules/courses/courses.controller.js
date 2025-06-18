@@ -2,18 +2,22 @@ const courseService = require('./courses.service');
 const logger = require('../../utils/logger');
 const { HTTP_STATUS } = require('../../utils/constants');
 
-const createCourse = async (req, res,next) => {
+const createCourse = async (req, res, next) => {
   try {
     const userId = req.user.id;
-
-    const course = await courseService.createCourse(req.body, userId);
+    const courseData = req.body;
+    
+    console.log("Request body:", req.body); 
+    console.log("Files in request:", req.files); 
+    
+    const course = await courseService.createCourse(courseData, userId, req.files || {});
     logger.info(`Course created: ${course.id} by instructor ${userId}`);
     res.status(HTTP_STATUS.CREATED).json(course);
   } catch (error) {
     logger.error(`Error in createCourse: ${error.message}`);
     next(error);
   }
-}
+};
 
 const getCourseById = async (req, res, next) => {
   try {
