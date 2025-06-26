@@ -1,24 +1,72 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import CourseCard from '../components/ui/CourseCard';
-import {mockCourse, relatedCourses} from '../data/main.js'; 
-
-
+import { useAuth } from '../contexts/AuthContext';
 
 const CourseDetailsPage = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
+  const { api, user } = useAuth();
   
-  
-  const [course] = useState(mockCourse);
+  // State
+  const [course, setCourse] = useState(null);
+  const [relatedCourses, setRelatedCourses] = useState([]);
   const [activeModule, setActiveModule] = useState(null);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [enrollmentLoading, setEnrollmentLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
+  // Fetch course data
+  useEffect(() => {
+
+      if (!courseId) {
+    console.error("Course ID is undefined");
+    navigate("/courses"); // Redirect to courses page
+    return;
+  }
+
+    const fetchCourseData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch course details
+        const courseResponse = await api.get(`/courses/${courseId}`);
+        setCourse(courseResponse.data);
+        
+        // Fetch related courses (same category)
+        if (courseResponse.data.category) {
+          const relatedResponse = await api.get(`/courses?category=${courseResponse.data.category.toLowerCase()}&limit=3`);
+          setRelatedCourses(relatedResponse.data.courses.filter(c => c.id !== parseInt(courseId)));
+        }
+        
+        // Check if user is enrolled (only if logged in)
+        if (user) {
+          try {
+            const enrollmentResponse = await api.get(`/users/dashboard`);
+            const enrolledCourses = enrollmentResponse.data.enrolledCourses || [];
+            const isUserEnrolled = enrolledCourses.some(ec => ec.id === parseInt(courseId));
+            setIsEnrolled(isUserEnrolled);
+          } catch (enrollmentError) {
+            console.log('Could not fetch enrollment status:', enrollmentError);
+          }
+        }
+        
+      } catch (error) {
+        console.error('Error fetching course data:', error);
+        setError('Failed to load course data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchCourseData();
+  }, [courseId, api, user]);
   
+  // Toggle module expansion
   const toggleModule = (moduleId) => {
     if (activeModule === moduleId) {
       setActiveModule(null);
@@ -27,20 +75,81 @@ const CourseDetailsPage = () => {
     }
   };
 
-  
-  const handleEnrollment = () => {
+  // Handle enrollment
+  const handleEnrollment = async () => {
+    if (!user) {
+      navigate('/login', { state: { from: `/courses/${courseId}` } });
+      return;
+    }
+    
     setEnrollmentLoading(true);
     
-    setTimeout(() => {
+    try {
+      await api.post(`/courses/${courseId}/enroll`);
       setIsEnrolled(true);
+      
+      // Show success message
+      alert('Successfully enrolled in the course!');
+    } catch (error) {
+      console.error('Enrollment error:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to enroll in course';
+      alert(errorMessage);
+    } finally {
       setEnrollmentLoading(false);
-    }, 1000);
+    }
+  };
+
+  // Handle continue learning
+  const handleContinueLearning = () => {
+    navigate(`/courses/${courseId}/content`);
   };
   
   const fadeIn = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 }
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex flex-col min-h-screen bg-primary-50 dark:bg-dark-bg">
+        <Navbar />
+        <div className="flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-400">Loading course details...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !course) {
+    return (
+      <div className="flex flex-col min-h-screen bg-primary-50 dark:bg-dark-bg">
+        <Navbar />
+        <div className="flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
+              <svg className="h-8 w-8 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-medium mb-2">Course Not Found</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              {error || 'The course you are looking for does not exist or has been removed.'}
+            </p>
+            <button onClick={() => navigate('/courses')} className="btn btn-primary">
+              Browse All Courses
+            </button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-primary-50 dark:bg-dark-bg">
@@ -81,19 +190,19 @@ const CourseDetailsPage = () => {
                 <h1 className="text-3xl md:text-5xl font-bold text-white mb-4">{course.title}</h1>
                 
                 <p className="text-xl text-primary-100 mb-6">
-                  {course.description.split('.')[0] + '.'}
+                  {course.description && course.description.split('.')[0] + '.'}
                 </p>
                 
                 <div className="flex flex-wrap items-center gap-6 text-primary-100">
                   <div className="flex items-center">
                     <img 
-                      src={course.instructor?.avatar} 
-                      alt={course.instructor?.firstName + " " + course.instructor?.lastName} 
+                      src={course.instructor?.avatar || 'https://randomuser.me/api/portraits/men/32.jpg'} 
+                      alt={`${course.instructor?.firstName} ${course.instructor?.lastName}`} 
                       className="w-10 h-10 rounded-full object-cover mr-3"
                     />
                     <div>
                       <p className="text-white font-medium">
-                        {course.instructor?.firstName} {course.instructor?.lastName}
+                        {course.instructor ? `${course.instructor.firstName} ${course.instructor.lastName}` : 'Instructor'}
                       </p>
                       <p className="text-sm">Instructor</p>
                     </div>
@@ -139,7 +248,6 @@ const CourseDetailsPage = () => {
                   <div className="mt-8 border-t dark:border-gray-700 pt-6">
                     <h3 className="text-xl font-semibold mb-4">What You'll Learn</h3>
                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {/* Sample learning outcomes */}
                       <li className="flex items-start">
                         <svg className="h-5 w-5 text-primary-600 dark:text-primary-400 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -349,7 +457,7 @@ const CourseDetailsPage = () => {
                 <div className="card sticky top-24">
                   <div className="relative mb-6 rounded-lg overflow-hidden h-48 bg-gray-100 dark:bg-gray-800">
                     <img 
-                      src={course.coverImage} 
+                      src={course.coverImage || 'https://via.placeholder.com/400x300?text=Course+Cover'} 
                       alt={course.title} 
                       className="w-full h-full object-cover"
                     />
@@ -365,14 +473,19 @@ const CourseDetailsPage = () => {
                   
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-2xl font-bold">{course.price ? `$${course.price}` : 'Free'}</h3>
-                      {course.originalPrice && (
+                      <h3 className="text-2xl font-bold">
+                        {course.isFree ? 'Free' : `$${course.price}`}
+                      </h3>
+                      {course.originalPrice && !course.isFree && (
                         <span className="line-through text-gray-500 dark:text-gray-400">${course.originalPrice}</span>
                       )}
                     </div>
                     
                     {isEnrolled ? (
-                      <button className="btn btn-success w-full mb-4">
+                      <button 
+                        onClick={handleContinueLearning}
+                        className="btn btn-success w-full mb-4"
+                      >
                         Continue Learning
                       </button>
                     ) : (
@@ -387,10 +500,12 @@ const CourseDetailsPage = () => {
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            Enrolling...
+                            <span className="text-white">Enrolling...</span>
                           </span>
                         ) : (
-                          'Enroll Now'
+                          <span className="text-white">
+                            {course.isFree ? 'Enroll for Free' : 'Enroll Now'}
+                          </span>
                         )}
                       </button>
                     )}
@@ -469,57 +584,37 @@ const CourseDetailsPage = () => {
         </section>
         
         {/* Related Courses Section */}
-        <section className="py-12 bg-gray-50 dark:bg-gray-800/20">
-          <div className="container mx-auto px-4 max-w-7xl">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <h2 className="text-2xl md:text-3xl font-bold mb-8">Related Courses</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Mock related courses */}
-                {relatedCourses.map((course, index) => (
-                  <div key={`related-${index}`} className="card overflow-hidden bg-white dark:bg-dark-card hover:shadow-lg transition-shadow">
-                    <div className="relative">
-                      <img 
-                        src={course.coverImage} 
-                        alt={course.title} 
-                        className="w-full h-48 object-cover"
-                      />
-                      <span className="absolute top-3 left-3 bg-primary-600/90 text-white text-xs px-2 py-1 rounded">
-                        {course.category}
-                      </span>
-                    </div>
-                    <div className="p-5">
-                      <h3 className="text-lg font-semibold mb-2 line-clamp-2">{course.title}</h3>
-                      <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">{course.instructor}</p>
-                      
-                      <div className="flex items-center mb-3">
-                        <div className="flex text-yellow-400 mr-1">
-                          {Array(5).fill(0).map((_, i) => (
-                            <svg key={i} className={`w-4 h-4 ${i < Math.floor(course.rating) ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'}`} fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118l-2.8-2.034c-.784-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                          ))}
-                        </div>
-                        <span className="text-sm text-gray-600 dark:text-gray-400">{course.rating} ({course.studentsCount} students)</span>
-                      </div>
-                      
-                      <div className="flex justify-between items-center">
-                        <span className="text-lg font-bold text-primary-700 dark:text-primary-400">${course.price}</span>
-                        <Link to={`/courses/${course.id}`} className="btn btn-sm btn-primary">
-                          View Course
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          </div>
-        </section>
+        {relatedCourses.length > 0 && (
+          <section className="py-12 bg-gray-50 dark:bg-gray-800/20">
+            <div className="container mx-auto px-4 max-w-7xl">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <h2 className="text-2xl md:text-3xl font-bold mb-8">Related Courses</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {relatedCourses.map((relatedCourse) => (
+                    <CourseCard 
+                      key={relatedCourse.id}
+                      id={relatedCourse.id}
+                      title={relatedCourse.title}
+                      instructor={relatedCourse.instructor ? `${relatedCourse.instructor.firstName} ${relatedCourse.instructor.lastName}` : 'Instructor'}
+                      rating={relatedCourse.rating || 0}
+                      price={relatedCourse.price}
+                      isFree={relatedCourse.isFree}
+                      level={relatedCourse.level}
+                      studentsCount={relatedCourse._count?.progress || 0}
+                      coverImage={relatedCourse.coverImage}
+                      category={relatedCourse.category}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+          </section>
+        )}
       </div>
       
       <Footer />
