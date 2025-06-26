@@ -9,10 +9,13 @@ import TextLessonForm from '../components/CourseContents/TextLessonForm';
 import VideoLessonForm from '../components/CourseContents/VideoLessonForm';
 import QuizForm from '../components/CourseContents/QuizForm';
 import AssignmentForm from '../components/CourseContents/AssignmentForm';
+import { useAuth } from '../contexts/AuthContext';
 
 const CourseModuleManagementPage = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
+  const { api } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   
   const [course, setCourse] = useState(null);
@@ -33,119 +36,139 @@ const CourseModuleManagementPage = () => {
   });
   
   
-  useEffect(() => {
-    const fetchCourseData = async () => {
-      setLoading(true);
+
+
+useEffect(() => {
+  const fetchCourseData = async () => {
+    setLoading(true);
+    try {
+      
+      const response = await api.get(`/courses/${courseId}`);
+      setCourse(response.data);
+      
       try {
         
+      const modulesResponse = await api.get(`/courses/${courseId}/modules`);
+      console.log("Raw modules data:", JSON.stringify(modulesResponse.data));
         
         
-        
-        
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        const mockCourse = {
-          id: courseId,
-          title: 'Web Development Fundamentals',
-          description: 'Learn the essentials of web development',
-          coverImage: 'https://images.unsplash.com/photo-1593720213428-28a5b9e94613?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1770&q=80'
-        };
-        
-        const mockModules = [
-          {
-            id: 1,
-            title: 'Introduction to HTML',
-            description: 'Learn the basics of HTML document structure',
-            order: 1,
-            content: [
-              { id: 1, type: 'text', title: 'HTML Structure', order: 1 },
-              { id: 2, type: 'video', title: 'HTML Tags Explained', order: 2 },
-              { id: 3, type: 'quiz', title: 'HTML Basics Quiz', order: 3 }
-            ]
-          },
-          {
-            id: 2,
-            title: 'CSS Styling',
-            description: 'Master the fundamentals of CSS styling',
-            order: 2,
-            content: [
-              { id: 4, type: 'text', title: 'CSS Selectors', order: 1 },
-              { id: 5, type: 'assignment', title: 'Style a Webpage', order: 2 }
-            ]
-          }
-        ];
-        
-        setCourse(mockCourse);
-        setModules(mockModules);
-      } catch (err) {
-        console.error('Error fetching course data:', err);
-        setError('Failed to load course data. Please try again.');
-      } finally {
-        setLoading(false);
-      }
+if (Array.isArray(modulesResponse.data)) {
+  console.log("Processing array of modules");
+  const formattedModules = modulesResponse.data.map((module, index) => {
+    console.log("Processing module:", module);
+    return {
+      id: module.id,
+      title: module.title,
+      description: module.description || '',
+      order: module.order || index + 1,
+      content: [
+        ...((module.lessons && Array.isArray(module.lessons)) ? module.lessons.map((lesson, lessonIndex) => ({
+          id: lesson.id,
+          type: 'text', 
+          title: lesson.title,
+          content: lesson.content || '',
+          order: lesson.order || lessonIndex + 1
+        })) : []),
+        ...((module.quizzes && Array.isArray(module.quizzes)) ? module.quizzes.map((quiz, quizIndex) => ({
+          id: quiz.id,
+          type: 'quiz',
+          title: quiz.title,
+          description: quiz.description || '',
+          order: quiz.order || ((module.lessons?.length || 0) + quizIndex + 1)
+        })) : []),
+        ...((module.assignments && Array.isArray(module.assignments)) ? module.assignments.map((assignment, assignmentIndex) => ({
+          id: assignment.id,
+          type: 'assignment',
+          title: assignment.title,
+          instructions: assignment.instructions || '',
+          order: assignment.order || ((module.lessons?.length || 0) + (module.quizzes?.length || 0) + assignmentIndex + 1)
+        })) : [])
+      ].sort((a, b) => (a.order || 0) - (b.order || 0))
     };
+  });
+  
+  console.log("Formatted modules:", formattedModules);
+  setModules(formattedModules);
+} else if (modulesResponse.data && typeof modulesResponse.data === 'object' && modulesResponse.data.modules) {
+  
+  console.log("Processing nested modules data");
+  const formattedModules = modulesResponse.data.modules.map((module, index) => {
     
-    fetchCourseData();
-  }, [courseId]);
+  });
+  setModules(formattedModules);
+} else {
+  console.error("Unexpected modules response format:", modulesResponse.data);
+  setModules([]);
+}
+      } catch (moduleError) {
+        console.error("Error fetching modules:", moduleError);
+        
+        setModules([]);
+      }
+    } catch (err) {
+      console.error('Error fetching course data:', err);
+      setError('Failed to load course data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
   
-  
+  fetchCourseData();
+}, [courseId, api]);
+
   const toggleModule = (moduleId) => {
         setActiveModuleId(activeModuleId === moduleId ? null : moduleId);
     };
     
-    const handleSaveTextLesson = async (lessonData) => {
-    try {
-        
-        
-        
-        
-        await new Promise(resolve => setTimeout(resolve, 600));
-        
-        
-        const newLesson = {
-        id: Date.now(), 
-        type: 'text',
-        title: lessonData.title,
-        content: lessonData.content,
-        estimatedTime: lessonData.estimatedTime,
-        isPublished: lessonData.isPublished,
-        order: 0 
-        };
-        
-        
-        const updatedModules = modules.map(module => {
-        if (module.id === selectedModule) {
-            
-            const highestOrder = module.content.length > 0 
-            ? Math.max(...module.content.map(item => item.order))
-            : 0;
-            
-            
-            const newContent = {
-            ...newLesson,
-            order: highestOrder + 1
-            };
-            
-            return {
-            ...module,
-            content: [...module.content, newContent]
-            };
-        }
-        return module;
-        });
-        
-        setModules(updatedModules);
-        setSelectedContentType(null); 
-        
-        
-        alert('Lesson created successfully!');
-    } catch (error) {
-        console.error('Error creating lesson:', error);
-        alert('Failed to create lesson. Please try again.');
-    }
+const handleSaveTextLesson = async (lessonData) => {
+  try {
+    setIsSubmitting(true);
+    
+    const newLessonData = {
+      title: lessonData.title,
+      content: lessonData.content,
+      moduleId: selectedModule,
+      type: 'TEXT',
+      estimatedTime: lessonData.estimatedTime,
+      isPublished: lessonData.isPublished
     };
+    
+    
+    const response = await api.post('/lessons', newLessonData);
+    
+    const newLesson = {
+      id: response.data.id,
+      type: 'text',
+      title: response.data.title,
+      content: response.data.content,
+      estimatedTime: response.data.estimatedTime,
+      isPublished: response.data.isPublished,
+      order: response.data.order
+    };
+    
+    
+    const updatedModules = modules.map(module => {
+      if (module.id === selectedModule) {
+        return {
+          ...module,
+          content: [...module.content, newLesson].sort((a, b) => a.order - b.order)
+        };
+      }
+      return module;
+    });
+    
+    setModules(updatedModules);
+    setSelectedContentType(null);
+    
+  } catch (error) {
+    console.error('Error creating lesson:', error);
+    alert('Failed to create lesson. Please try again.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
-    const handleSaveAssignment = async (assignmentData) => {
+const handleSaveAssignment = async (assignmentData) => {
   try {
     
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -258,6 +281,7 @@ const CourseModuleManagementPage = () => {
     const handleSaveVideoLesson = async (lessonData) => {
         try {
             
+            setIsSubmitting(true);
             await new Promise(resolve => setTimeout(resolve, 800));
             
             
@@ -317,95 +341,112 @@ const CourseModuleManagementPage = () => {
   };
   
   
-  const handleAddModule = async (e) => {
-    e.preventDefault();
+const handleAddModule = async (e) => {
+  e.preventDefault();
+  
+  if (!moduleForm.title.trim()) {
+    return;
+  }
+  
+  try {
+    setIsSubmitting(true);
     
-    if (!moduleForm.title.trim()) {
-      return;
-    }
+    const moduleData = {
+      title: moduleForm.title,
+      description: moduleForm.description,
+      courseId: parseInt(courseId),
+      order: modules.length + 1
+    };
+    
+    
+    const response = await api.post(`/courses/${courseId}/modules`, moduleData);
+    
+    const newModule = {
+      id: response.data.id,
+      title: response.data.title,
+      description: response.data.description,
+      order: response.data.order || modules.length + 1,
+      content: []
+    };
+    
+    setModules([...modules, newModule]);
+    setModuleForm({ title: '', description: '' });
+    setShowModuleForm(false);
+    setActiveModuleId(newModule.id);
+  } catch (err) {
+    console.error('Error adding module:', err);
+    alert('Failed to add module. Please try again.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+  
+  
+
+const handleDragEnd = async (result) => {
+  if (!result.destination) return;
+  
+  const { source, destination, type } = result;
+  
+  if (type === 'module') {
+    const reorderedModules = [...modules];
+    const [movedModule] = reorderedModules.splice(source.index, 1);
+    reorderedModules.splice(destination.index, 0, movedModule);
+    
+    
+    const updatedModules = reorderedModules.map((module, index) => ({
+      ...module,
+      order: index + 1
+    }));
+    
+    setModules(updatedModules);
+    
     
     try {
-      
-      
-      
-      
-      await new Promise(resolve => setTimeout(resolve, 600));
-      
-      const newModule = {
-        id: Date.now(), 
-        title: moduleForm.title,
-        description: moduleForm.description,
-        order: modules.length + 1,
-        content: []
-      };
-      
-      setModules([...modules, newModule]);
-      setModuleForm({ title: '', description: '' });
-      setShowModuleForm(false);
-      setActiveModuleId(newModule.id);
+      await api.put(`/courses/${courseId}/modules/reorder`, {
+        moduleIds: updatedModules.map(m => m.id)
+      });
     } catch (err) {
-      console.error('Error adding module:', err);
-      alert('Failed to add module. Please try again.');
+      console.error('Error updating module order:', err);
+      
     }
-  };
+  }
   
-  
-  const handleDragEnd = async (result) => {
-    if (!result.destination) return;
+  if (type === 'content') {
+    const moduleId = parseInt(source.droppableId.replace('module-content-', ''));
+    const moduleIndex = modules.findIndex(m => m.id === moduleId);
     
-    const { source, destination, type } = result;
-    
-    
-    if (type === 'module') {
-      const reorderedModules = [...modules];
-      const [movedModule] = reorderedModules.splice(source.index, 1);
-      reorderedModules.splice(destination.index, 0, movedModule);
+    if (moduleIndex !== -1) {
+      const updatedModules = [...modules];
+      const module = { ...updatedModules[moduleIndex] };
+      const content = [...module.content];
+      
+      const [movedItem] = content.splice(source.index, 1);
+      content.splice(destination.index, 0, movedItem);
       
       
-      const updatedModules = reorderedModules.map((module, index) => ({
-        ...module,
+      const updatedContent = content.map((item, index) => ({
+        ...item,
         order: index + 1
       }));
+      
+      module.content = updatedContent;
+      updatedModules[moduleIndex] = module;
       
       setModules(updatedModules);
       
       
-      
-      
-      
-      
-    }
-    
-    
-    if (type === 'content') {
-      const moduleId = parseInt(source.droppableId.replace('module-content-', ''));
-      const moduleIndex = modules.findIndex(m => m.id === moduleId);
-      
-      if (moduleIndex !== -1) {
-        const updatedModules = [...modules];
-        const module = { ...updatedModules[moduleIndex] };
-        const content = [...module.content];
-        
-        const [movedItem] = content.splice(source.index, 1);
-        content.splice(destination.index, 0, movedItem);
-        
-        
-        const updatedContent = content.map((item, index) => ({
-          ...item,
-          order: index + 1
-        }));
-        
-        module.content = updatedContent;
-        updatedModules[moduleIndex] = module;
-        
-        setModules(updatedModules);
-        
-        
+      try {
+        await api.put(`/courses/modules/${moduleId}/content/reorder`, {
+          contentIds: updatedContent.map(c => ({ id: c.id, type: c.type }))
+        });
+      } catch (err) {
+        console.error('Error updating content order:', err);
         
       }
     }
-  };
-  
+  }
+};  
   
   const handleAddContent = (moduleId, contentType) => {
     setSelectedModule(moduleId);
@@ -413,22 +454,23 @@ const CourseModuleManagementPage = () => {
   };
   
   
-  const handleDeleteModule = async (moduleId) => {
-    if (window.confirm('Are you sure you want to delete this module and all its content? This action cannot be undone.')) {
-      try {
-        
-        
-        
-        
-        await new Promise(resolve => setTimeout(resolve, 400));
-        
-        setModules(modules.filter(module => module.id !== moduleId));
-      } catch (err) {
-        console.error('Error deleting module:', err);
-        alert('Failed to delete module. Please try again.');
-      }
+const handleDeleteModule = async (moduleId) => {
+  if (window.confirm('Are you sure you want to delete this module and all its content? This action cannot be undone.')) {
+    try {
+      setIsSubmitting(true);
+      
+      
+      await api.delete(`/courses/modules/${moduleId}`);
+      
+      setModules(modules.filter(module => module.id !== moduleId));
+    } catch (err) {
+      console.error('Error deleting module:', err);
+      alert('Failed to delete module. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-  };
+  }
+};
   
   
   const handleDeleteContent = async (moduleId, contentId, contentType) => {
