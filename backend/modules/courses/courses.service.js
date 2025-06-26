@@ -6,6 +6,9 @@ const { uploadToCloudinary } = require('../../utils/fileUpload');
 
 const createCourse = async (courseData, instructorId, files) => {
   try {
+
+      const { title, description, category, level, isFree, price } = courseData;
+
     
     let coverImageUrl = null;
     let previewVideoUrl = null;
@@ -99,12 +102,21 @@ const getCourseById = async (courseId,instructorDetails=false) => {
           include: {
             lessons: {
               orderBy: {
-                order: 'asc'
+                order: "asc"
+              },
+              include: {  
+                module: true
               },
               select: {
                 id: true,
                 title: true,
-                order: true
+                content: true,
+                videoUrl: true,
+                duration: true,
+                order: true,
+                moduleId: true,
+                createdAt: true,
+                updatedAt: true
               }
             },
             quizzes: {
@@ -469,6 +481,345 @@ const updateModule = async (moduleId, moduleData, instructorId) =>{
   }
 }
 
+const getCourseContent = async (courseId, userId) => {
+  try {
+    
+    const enrollment = await prisma.progress.findFirst({
+      where: {
+        courseId: Number(courseId),
+        userId: Number(userId)
+      }
+    });
+
+    if (!enrollment) {
+      const error = new Error('You must be enrolled in this course to access content');
+      error.status = HTTP_STATUS.FORBIDDEN;
+      throw error;
+    }
+
+    
+    const course = await prisma.course.findUnique({
+      where: { id: Number(courseId) },
+      include: {
+        instructor: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true
+          }
+        },
+        modules: {
+          orderBy: { order: 'asc' },
+          include: {
+            lessons: {
+              orderBy: { order: 'asc' },
+              select: {
+                id: true,
+                title: true,
+                content: true,
+                videoUrl: true,
+                duration: true,
+                order: true,
+                moduleId: true,
+              }
+            },
+            quizzes: {
+              orderBy: { order: 'asc' },
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                timeLimit: true,
+                order: true,
+                questions: {
+                  orderBy: { order: 'asc' },
+                  select: {
+                    id: true,
+                    question: true,
+                    type: true,
+                    options: true,
+                    correctAnswer: true,
+                    explanation: true,
+                    order: true
+                  }
+                }
+              }
+            },
+            assignments: {
+              orderBy: { order: 'asc' },
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                instructions: true,
+                dueDate: true,
+                totalPoints: true,
+                order: true
+              }
+            }
+          }
+        },
+        _count: {
+          select: {
+            progress: true
+          }
+        }
+      }
+    });
+
+    console.log('Course Data:', course);
+
+
+    if (!course) {
+      const error = new Error('Course not found');
+      error.status = HTTP_STATUS.NOT_FOUND;
+      throw error;
+    }
+
+    
+    const userProgress = await prisma.lessonProgress.findMany({
+      where: {
+        userId: Number(userId),
+        lesson: {
+          module: {
+            courseId: Number(courseId)
+          }
+        }
+      },
+      select: {
+        lessonId: true,
+        isCompleted: true,
+        completedAt: true
+      }
+    });
+
+    
+    const transformedCourse = {
+      ...course,
+      modules: course.modules.map(module => ({
+        ...module,
+        content: [
+          ...module.lessons.map(lesson => ({
+            ...lesson,
+            type: 'lesson',
+            subType: lesson.videoUrl ? 'video' : 'text',
+            moduleId: module.id,
+            moduleTitle: module.title,
+            isCompleted: userProgress.some(p => p.lessonId === lesson.id && p.isCompleted)
+          })),
+          ...module.quizzes.map(quiz => ({
+            ...quiz,
+            type: 'quiz',
+            moduleId: module.id,
+            moduleTitle: module.title,
+            isCompleted: false 
+          })),
+          ...module.assignments.map(assignment => ({
+            ...assignment,
+            type: 'assignment',
+            moduleId: module.id,
+            moduleTitle: module.title,
+            isCompleted: false 
+          }))
+        ].sort((a, b) => a.order - b.order)
+      }))
+    };
+
+    return transformedCourse;
+  } catch (error) {
+    logger.error(`Error getting course content: ${error.message}`);
+    throw error;
+  }
+};
+
+const getModulesByCourse = async (courseId) => {
+  try {
+    
+    console.log(`Fetching modules for course ${courseId}`);
+    
+    const modules = await prisma.module.findMany({
+      where: {
+        courseId: Number(courseId)
+      },
+      orderBy: {
+        order: 'asc' 
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        order: true,
+        lessons: {
+          select: {
+            id: true,
+            title: true,
+            content: true,
+            order: true
+          },
+          orderBy: {
+            order: 'asc'
+          }
+        },
+        quizzes: {
+          select: {
+            id: true,
+            title: true
+            
+          },
+          orderBy: {
+            createdAt: 'asc'
+          }
+        },
+        assignments: {
+          select: {
+            id: true,
+            title: true,
+            description: true,  
+            dueDate: true       
+          },
+          orderBy: {
+            createdAt: 'asc'
+          }
+        }
+      }
+    });
+    
+    console.log(`Found ${modules.length} modules for course ${courseId}`);
+    
+    return modules;
+  } catch (error) {
+    console.error(`Error in getModulesByCourse: ${error}`);
+    logger.error(`Error getting modules by course: ${error.message}`);
+    throw error;
+  }
+};
+
+
+const deleteModule = async (moduleId, instructorId) => {
+  try {
+    const module = await prisma.module.findUnique({
+      where: { id: Number(moduleId) },
+      include: {
+        course: {
+          select: { instructorId: true }
+        }
+      }
+    });
+
+    if (!module) {
+      const error = new Error('Module not found');
+      error.status = HTTP_STATUS.NOT_FOUND;
+      throw error;
+    }
+
+    if (module.course.instructorId !== instructorId) {
+      const error = new Error('Not authorized to delete this module');
+      error.status = HTTP_STATUS.FORBIDDEN;
+      throw error;
+    }
+
+    await prisma.module.delete({
+      where: { id: Number(moduleId) }
+    });
+
+    return { success: true };
+  } catch (error) {
+    logger.error(`Error deleting module: ${error.message}`);
+    throw error;
+  }
+};
+
+const reorderModules = async (courseId, moduleIds, instructorId) => {
+  try {
+    const course = await prisma.course.findUnique({
+      where: { id: Number(courseId) },
+      select: { instructorId: true }
+    });
+
+    if (!course) {
+      const error = new Error('Course not found');
+      error.status = HTTP_STATUS.NOT_FOUND;
+      throw error;
+    }
+
+    if (course.instructorId !== instructorId) {
+      const error = new Error('Not authorized to reorder modules for this course');
+      error.status = HTTP_STATUS.FORBIDDEN;
+      throw error;
+    }
+
+    
+    const updates = moduleIds.map((moduleId, index) => {
+      return prisma.module.update({
+        where: { id: Number(moduleId) },
+        data: { order: index + 1 }
+      });
+    });
+
+    await prisma.$transaction(updates);
+
+    return { success: true };
+  } catch (error) {
+    logger.error(`Error reordering modules: ${error.message}`);
+    throw error;
+  }
+};
+
+const reorderModuleContent = async (moduleId, contentIds, instructorId) => {
+  try {
+    const module = await prisma.module.findUnique({
+      where: { id: Number(moduleId) },
+      include: {
+        course: {
+          select: { instructorId: true }
+        }
+      }
+    });
+
+    if (!module) {
+      const error = new Error('Module not found');
+      error.status = HTTP_STATUS.NOT_FOUND;
+      throw error;
+    }
+
+    if (module.course.instructorId !== instructorId) {
+      const error = new Error('Not authorized to reorder content for this module');
+      error.status = HTTP_STATUS.FORBIDDEN;
+      throw error;
+    }
+
+    
+    for (let i = 0; i < contentIds.length; i++) {
+      const { id, type } = contentIds[i];
+      
+      if (type === 'text' || type === 'video') {
+        await prisma.lesson.update({
+          where: { id: Number(id) },
+          data: { order: i + 1 }
+        });
+      } else if (type === 'quiz') {
+        await prisma.quiz.update({
+          where: { id: Number(id) },
+          data: { order: i + 1 }
+        });
+      } else if (type === 'assignment') {
+        
+        await prisma.assignment.update({
+          where: { id: Number(id) },
+          data: { order: i + 1 }
+        });
+      }
+    }
+
+    return { success: true };
+  } catch (error) {
+    logger.error(`Error reordering module content: ${error.message}`);
+    throw error;
+  }
+};
+
+
 module.exports = {
   createCourse,
   getCourseById,
@@ -479,5 +830,10 @@ module.exports = {
   unenrollFromCourse,
   getEnrolledStudents,
   addModule,
-  updateModule
+  updateModule,
+  deleteModule,
+  getCourseContent,
+  getModulesByCourse,
+  reorderModules,
+  reorderModuleContent
 };
