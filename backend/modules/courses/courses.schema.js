@@ -46,6 +46,10 @@ const moduleIdParam = Joi.object({
   moduleId: Joi.number().integer().required(),
 });
 
+const enrollmentParam = Joi.object({
+  courseId: Joi.number().integer().required(),
+});
+
 module.exports = {
   createCourse,
   updateCourse,
@@ -54,4 +58,5 @@ module.exports = {
   listCourses,
   courseIdParam,
   moduleIdParam,
+  enrollmentParam
 };
