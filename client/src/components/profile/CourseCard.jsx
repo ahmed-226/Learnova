@@ -11,6 +11,10 @@ const CourseCard = ({ course }) => {
 
   const color = course.color || getProgressColor(course.progress);
 
+    if (!course.id) {
+    console.error("Course ID is missing:", course);
+  }
+
   return (
     <div className="card h-[280px] flex flex-col overflow-hidden">
       {/* Course Image */}
