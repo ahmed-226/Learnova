@@ -19,6 +19,21 @@ const createCourse = async (req, res, next) => {
   }
 };
 
+const getCourseContent = async (req, res, next) => {
+  try {
+    const courseId = req.params.courseId;
+    const userId = req.user.id;
+    
+    console.log(`Getting content for course ${courseId} for user ${userId}`);
+    
+    const courseContent = await courseService.getCourseContent(courseId, userId);
+    res.status(HTTP_STATUS.OK).json(courseContent);
+  } catch (error) {
+    logger.error(`Error in getCourseContent: ${error.message}`);
+    next(error);
+  }
+};
+
 const getCourseById = async (req, res, next) => {
   try {
     const courseId = parseInt(req.params.courseId);
@@ -144,10 +159,81 @@ const updateModule = async (req, res,next) => {
   }
 }
 
+const getModulesByCourse = async (req, res, next) => {
+  try {
+    const courseId = req.params.courseId;
+    
+    const modules = await courseService.getModulesByCourse(courseId);
+    res.status(HTTP_STATUS.OK).json(modules);
+  } catch (error) {
+    logger.error(`Error in getModulesByCourse: ${error.message}`);
+    next(error);
+  }
+};
+
+
+
+const deleteModule = async (req, res, next) => {
+  try {
+    const moduleId = req.params.moduleId;
+    const userId = req.user.id;
+
+    await courseService.deleteModule(moduleId, userId);
+    logger.info(`Module ${moduleId} deleted by instructor ${userId}`);
+    res.status(HTTP_STATUS.OK).json({ success: true });
+  } catch (error) {
+    logger.error(`Error in deleteModule: ${error.message}`);
+    next(error);
+  }
+};
+
+const reorderModules = async (req, res, next) => {
+  try {
+    const courseId = req.params.courseId;
+    const userId = req.user.id;
+    const { moduleIds } = req.body;
+
+    if (!Array.isArray(moduleIds)) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'moduleIds must be an array'
+      });
+    }
+
+    await courseService.reorderModules(courseId, moduleIds, userId);
+    logger.info(`Modules reordered for course ${courseId} by instructor ${userId}`);
+    res.status(HTTP_STATUS.OK).json({ success: true });
+  } catch (error) {
+    logger.error(`Error in reorderModules: ${error.message}`);
+    next(error);
+  }
+};
+
+const reorderModuleContent = async (req, res, next) => {
+  try {
+    const moduleId = req.params.moduleId;
+    const userId = req.user.id;
+    const { contentIds } = req.body;
+
+    if (!Array.isArray(contentIds)) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'contentIds must be an array'
+      });
+    }
+
+    await courseService.reorderModuleContent(moduleId, contentIds, userId);
+    logger.info(`Content reordered for module ${moduleId} by instructor ${userId}`);
+    res.status(HTTP_STATUS.OK).json({ success: true });
+  } catch (error) {
+    logger.error(`Error in reorderModuleContent: ${error.message}`);
+    next(error);
+  }
+};
+
 
 module.exports = {
   createCourse,
   getCourseById,
+  getCourseContent,
   updateCourse,
   deleteCourse,
   listCourses,
@@ -155,5 +241,9 @@ module.exports = {
   unenrollFromCourse,
   getEnrolledStudents, 
   addModule,
-  updateModule
-}
+  updateModule,
+  deleteModule,
+  getModulesByCourse,
+  reorderModules,
+  reorderModuleContent
+};
