@@ -10,12 +10,15 @@ const { checkRole } = require('../users/users.controller');
 router.use(auth);
 
 // Public routes for authenticated users
-router.get('/:lessonId', validate({ params: schema.lessonIdParam }), controller.getLessonById);
+router.get('/:lessonId', controller.getLessonById);
 router.get('/module/:moduleId', controller.getLessonsByModule);
 
+// Student routes
+router.post('/:lessonId/complete', controller.markLessonComplete);
+
 // Instructor routes
-router.post('/', checkRole('INSTRUCTOR'), validate(schema.createLesson), controller.createLesson);
-router.put('/:lessonId', checkRole('INSTRUCTOR'), validate(schema.updateLesson), controller.updateLesson);
+router.post('/', checkRole('INSTRUCTOR'), controller.createLesson);
+router.put('/:lessonId', checkRole('INSTRUCTOR'), controller.updateLesson);
 router.delete('/:lessonId', checkRole('INSTRUCTOR'), controller.deleteLesson);
 
 module.exports = router;
