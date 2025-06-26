@@ -75,6 +75,7 @@ model Lesson{
   title       String
   content     String?   @db.Text
   moduleId    Int
+  videoUrl  String?
   order       Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -88,6 +89,7 @@ model Quiz{
   moduleId    Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  order     Int      @default(0)
   // Relations
   module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   questions   Question[]
@@ -123,6 +125,7 @@ model Answer{
   isCorrect   Boolean?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  order        Int      @default(0)
   // Relations
   question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -176,6 +179,7 @@ model Assignment{
   dueDate     DateTime
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  order       Int      @default(0) 
 
   // Relations
   module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
