@@ -15,6 +15,11 @@ services:
       - postgres-data:/var/lib/postgresql/data
     networks:
       - learnova-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
@@ -24,7 +29,8 @@ services:
     ports:
       - "5001:5000"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     env_file:
       - ./backend/.env
     environment:
@@ -38,7 +44,6 @@ services:
     command: >
       sh -c "
         echo 'Waiting for postgres to be ready...' &&
-        sleep 5 &&
         npx prisma migrate deploy &&
         npm run dev
       "
@@ -60,6 +65,21 @@ services:
     networks:
       - learnova-network
 
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: learnova-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "8080:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - learnova-network
+
 networks:
   learnova-network:
     driver: bridge
@@ -68,3 +88,4 @@ volumes:
   postgres-data:
   backend-node-modules:
   frontend-node-modules:
+  pgadmin-data:
