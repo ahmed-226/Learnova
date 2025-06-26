@@ -18,16 +18,17 @@ const createLesson = async (req, res, next) => {
 
 
 const getLessonById = async (req, res, next) => {
-    try {
-        const lessonId = req.params.lessonId;
-        const userId = req.user?.id;
-
-        const lesson = await lessonService.getLessonById(lessonId, userId);
-        res.status(HTTP_STATUS.OK).json(lesson);
-    } catch (error) {
-        logger.error(`Error in getLessonById: ${error.message}`);
-        next(error);
-    }
+  try {
+    const lessonId = req.params.lessonId;
+    const userId = req.user ? req.user.id : null;
+    
+    const lesson = await lessonService.getLessonById(lessonId, userId);
+    
+    res.status(HTTP_STATUS.OK).json(lesson);
+  } catch (error) {
+    logger.error(`Error in getLessonById: ${error.message}`);
+    next(error);
+  }
 };
 
 
@@ -73,10 +74,25 @@ const getLessonsByModule = async (req, res, next) => {
     }
 };
 
+const markLessonComplete = async (req, res, next) => {
+  try {
+    const lessonId = req.params.lessonId;
+    const userId = req.user.id;
+
+    const progress = await lessonService.markLessonComplete(lessonId, userId);
+    logger.info(`Lesson ${lessonId} marked complete by user ${userId}`);
+    res.status(HTTP_STATUS.OK).json(progress);
+  } catch (error) {
+    logger.error(`Error in markLessonComplete: ${error.message}`);
+    next(error);
+  }
+};
+
 module.exports = {
-    createLesson,
-    getLessonById,
-    updateLesson,
-    deleteLesson,
-    getLessonsByModule
+  createLesson,
+  updateLesson,
+  getLessonById,
+  deleteLesson,
+  getLessonsByModule,
+  markLessonComplete 
 };
