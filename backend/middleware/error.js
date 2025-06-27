@@ -1,19 +1,35 @@
-// Global error handling middleware
 const logger = require('../utils/logger');
-const { HTTP_STATUS } = require('../utils/constants');
-
 
 const errorHandler = (err, req, res, next) => {
-  // Log the error
-  logger.error(`${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
+  // Log the full error for debugging
+  console.error('API Error:', {
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    query: req.query,
+    params: req.params
+  });
+
+  // Log to your logger
+  logger.error(`Error: ${err.message} at ${req.method} ${req.path}`);
+
+  // Handle Prisma errors specifically
+  if (err.code && err.code.startsWith('P')) {
+    console.error('Prisma Error:', err);
+    return res.status(400).json({
+      error: 'Database operation failed',
+      details: err.message
+    });
+  }
+
+  // Send appropriate response
+  const statusCode = err.status || 500;
+  const errorMessage = statusCode === 500 ? 'Internal server error' : err.message;
   
-  // Get appropriate status code
-  const statusCode = err.status || HTTP_STATUS.INTERNAL_SERVER_ERROR;
-  
-  // Send response with appropriate error message
   res.status(statusCode).json({
-    error: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
+    error: errorMessage,
+    status: statusCode
   });
 };
 

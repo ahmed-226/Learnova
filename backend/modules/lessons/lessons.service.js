@@ -1,45 +1,52 @@
 const prisma = require('../../config/database');
+const logger = require('../../utils/logger');
+const { HTTP_STATUS } = require('../../utils/constants');
+
 
 
 const createLesson = async (lessonData, instructorId) => {
-
-    const module = await prisma.module.findUnique({
-        where: { id: Number(lessonData.moduleId) },
-        include: { course: true }
-    });
-
-    if (!module) {
-        throw new Error('Module not found');
-    }
-
-    if (module.course.instructorId !== Number(instructorId)) {
-        throw new Error('Not authorized to add lessons to this module');
-    }
-
-
-    if (!lessonData.order) {
-        const highestOrder = await prisma.lesson.findFirst({
-            where: { moduleId: Number(lessonData.moduleId) },
-            orderBy: { order: 'desc' }
+    try {
+        const module = await prisma.module.findUnique({
+            where: { id: Number(lessonData.moduleId) },
+            include: { course: true }
         });
 
-        lessonData.order = highestOrder ? highestOrder.order + 1 : 1;
-    }
-
-
-    const lesson = await prisma.lesson.create({
-        data: {
-            title: lessonData.title,
-            content: lessonData.content || '',
-            moduleId: Number(lessonData.moduleId),
-            order: lessonData.order
+        if (!module) {
+            throw new Error('Module not found');
         }
-    });
 
-    return lesson;
+        if (module.course.instructorId !== Number(instructorId)) {
+            throw new Error('Not authorized to add lessons to this module');
+        }
+
+        // Find highest order lesson for this module to determine order
+        if (!lessonData.order) {
+            const highestOrder = await prisma.lesson.findFirst({
+                where: { moduleId: Number(lessonData.moduleId) },
+                orderBy: { order: 'desc' }
+            });
+
+            lessonData.order = highestOrder ? highestOrder.order + 1 : 1;
+        }
+
+        // Create the lesson with all necessary fields
+        const lesson = await prisma.lesson.create({
+            data: {
+                title: lessonData.title,
+                content: lessonData.content || '',
+                moduleId: Number(lessonData.moduleId),
+                order: lessonData.order,
+                videoUrl: lessonData.videoUrl || null,  // Ensure videoUrl is properly passed
+                duration: lessonData.duration ? Number(lessonData.duration) : null
+            }
+        });
+
+        return lesson;
+    } catch (error) {
+        logger.error(`Error creating lesson: ${error.message}`);
+        throw error;
+    }
 };
-
-
 
 const getLessonById = async (lessonId, userId) => {
   try {

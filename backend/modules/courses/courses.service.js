@@ -82,54 +82,64 @@ const createCourse = async (courseData, instructorId, files) => {
   }
 };
 
-const getCourseById = async (courseId,instructorDetails=false) => {
+const getCourseById = async (courseId, instructorDetails = false) => {
   try {
+    // First check if the course exists with minimal query
+    const courseExists = await prisma.course.findUnique({
+      where: { id: Number(courseId) },
+      select: { id: true }
+    });
+
+    if (!courseExists) {
+      const error = new Error('Course not found');
+      error.status = HTTP_STATUS.NOT_FOUND;
+      throw error;
+    }
+
+    // Then fetch with full details - now including more details for lessons, quizzes, and assignments
     const course = await prisma.course.findUnique({
       where: { id: Number(courseId) },
-      include: instructorDetails ? {
+      include: {
         instructor: {
           select: {
             id: true,
             firstName: true,
-            lastName: true,
-            email: true
+            lastName: true, 
+            avatar: true,
+            email: instructorDetails ? true : false
           }
         },
         modules: {
-          orderBy: {
-            order: 'asc'
-          },
+          orderBy: { order: 'asc' },
           include: {
             lessons: {
-              orderBy: {
-                order: "asc"
-              },
-              include: {  
-                module: true
-              },
+              orderBy: { order: 'asc' },
               select: {
                 id: true,
                 title: true,
-                content: true,
+                content: false, // Don't include full content for preview
                 videoUrl: true,
                 duration: true,
                 order: true,
-                moduleId: true,
-                createdAt: true,
-                updatedAt: true
+                moduleId: true
               }
             },
             quizzes: {
-              select: {
-                id: true,
-                title: true
-              }
-            },
-            assignments: {
+              orderBy: { order: 'asc' },
               select: {
                 id: true,
                 title: true,
-                dueDate: true
+                order: true
+              }
+            },
+            assignments: {
+              orderBy: { order: 'asc' },
+              select: {
+                id: true,
+                title: true,
+                description: false, // Don't include full description for preview
+                dueDate: true,
+                order: true
               }
             }
           }
@@ -139,29 +149,53 @@ const getCourseById = async (courseId,instructorDetails=false) => {
             progress: true
           }
         }
-      } : {
-        instructor: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true
-          }
+      }
+    });
+
+    // Add counts for lessons, quizzes, and assignments
+    const lessonCount = await prisma.lesson.count({
+      where: {
+        module: {
+          courseId: Number(courseId)
         }
       }
     });
 
-    if (!course) {
-      const error = new Error('Course not found');
-      error.status = HTTP_STATUS.NOT_FOUND;
-      throw error;
+    const quizCount = await prisma.quiz.count({
+      where: {
+        module: {
+          courseId: Number(courseId)
+        }
+      }
+    });
+
+    const assignmentCount = await prisma.assignment.count({
+      where: {
+        module: {
+          courseId: Number(courseId)
+        }
+      }
+    });
+
+    // Ensure modules is always an array
+    if (!course.modules) {
+      course.modules = [];
     }
+
+    // Add the counts to the course object
+    course._count = {
+      ...course._count,
+      lessons: lessonCount,
+      quizzes: quizCount,
+      assignments: assignmentCount
+    };
 
     return course;
   } catch (error) {
     logger.error(`Error getting course: ${error.message}`);
     throw error;
   }
-}
+};
 
 const updateCourse = async (courseId, courseData, instructorId) => {
   try {
