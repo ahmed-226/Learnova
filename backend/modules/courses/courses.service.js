@@ -84,7 +84,7 @@ const createCourse = async (courseData, instructorId, files) => {
 
 const getCourseById = async (courseId, instructorDetails = false) => {
   try {
-    // First check if the course exists with minimal query
+    
     const courseExists = await prisma.course.findUnique({
       where: { id: Number(courseId) },
       select: { id: true }
@@ -96,7 +96,7 @@ const getCourseById = async (courseId, instructorDetails = false) => {
       throw error;
     }
 
-    // Then fetch with full details - now including more details for lessons, quizzes, and assignments
+    
     const course = await prisma.course.findUnique({
       where: { id: Number(courseId) },
       include: {
@@ -117,7 +117,7 @@ const getCourseById = async (courseId, instructorDetails = false) => {
               select: {
                 id: true,
                 title: true,
-                content: false, // Don't include full content for preview
+                content: false, 
                 videoUrl: true,
                 duration: true,
                 order: true,
@@ -137,7 +137,7 @@ const getCourseById = async (courseId, instructorDetails = false) => {
               select: {
                 id: true,
                 title: true,
-                description: false, // Don't include full description for preview
+                description: false, 
                 dueDate: true,
                 order: true
               }
@@ -152,7 +152,7 @@ const getCourseById = async (courseId, instructorDetails = false) => {
       }
     });
 
-    // Add counts for lessons, quizzes, and assignments
+    
     const lessonCount = await prisma.lesson.count({
       where: {
         module: {
@@ -177,12 +177,12 @@ const getCourseById = async (courseId, instructorDetails = false) => {
       }
     });
 
-    // Ensure modules is always an array
+    
     if (!course.modules) {
       course.modules = [];
     }
 
-    // Add the counts to the course object
+    
     course._count = {
       ...course._count,
       lessons: lessonCount,

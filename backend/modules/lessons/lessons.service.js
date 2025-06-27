@@ -19,7 +19,7 @@ const createLesson = async (lessonData, instructorId) => {
             throw new Error('Not authorized to add lessons to this module');
         }
 
-        // Find highest order lesson for this module to determine order
+        
         if (!lessonData.order) {
             const highestOrder = await prisma.lesson.findFirst({
                 where: { moduleId: Number(lessonData.moduleId) },
@@ -29,14 +29,14 @@ const createLesson = async (lessonData, instructorId) => {
             lessonData.order = highestOrder ? highestOrder.order + 1 : 1;
         }
 
-        // Create the lesson with all necessary fields
+        
         const lesson = await prisma.lesson.create({
             data: {
                 title: lessonData.title,
                 content: lessonData.content || '',
                 moduleId: Number(lessonData.moduleId),
                 order: lessonData.order,
-                videoUrl: lessonData.videoUrl || null,  // Ensure videoUrl is properly passed
+                videoUrl: lessonData.videoUrl || null,  
                 duration: lessonData.duration ? Number(lessonData.duration) : null
             }
         });

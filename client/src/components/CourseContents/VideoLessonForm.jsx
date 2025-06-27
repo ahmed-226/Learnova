@@ -17,7 +17,46 @@ const VideoLessonForm = ({ moduleId, onCancel, onSave }) => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
+
   
+  const validateYouTubeUrl = (url) => {
+    if (!url) return false;
+    
+    
+    const patterns = [
+      /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/,
+      /^(https?:\/\/)?(www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11}).*$/,
+      /^(https?:\/\/)?(www\.)?youtu\.be\/([a-zA-Z0-9_-]{11}).*$/,
+      /^(https?:\/\/)?(www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11}).*$/
+    ];
+    
+    return patterns.some(pattern => pattern.test(url));
+  };
+
+  
+  const getYouTubeVideoId = (url) => {
+    if (!url) return null;
+    
+    
+    if (url.includes('youtube.com/watch?v=')) {
+      const id = url.split('watch?v=')[1];
+      return id.split('&')[0]; 
+    }
+    
+    
+    if (url.includes('youtu.be/')) {
+      const id = url.split('youtu.be/')[1];
+      return id.split('?')[0]; 
+    }
+    
+    
+    if (url.includes('youtube.com/embed/')) {
+      const id = url.split('embed/')[1];
+      return id.split('?')[0]; 
+    }
+    
+    return null;
+  };
   
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -27,12 +66,10 @@ const VideoLessonForm = ({ moduleId, onCancel, onSave }) => {
       [name]: type === 'checkbox' ? checked : value
     }));
     
-    
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
     }
   };
-  
   
   const handleVideoTypeChange = (type) => {
     setLessonData(prev => ({ 
@@ -44,7 +81,6 @@ const VideoLessonForm = ({ moduleId, onCancel, onSave }) => {
     setUploadedFile(null);
   };
   
-  
   const handleVideoUrlChange = (e) => {
     const url = e.target.value;
     setLessonData(prev => ({ ...prev, videoUrl: url }));
@@ -53,15 +89,17 @@ const VideoLessonForm = ({ moduleId, onCancel, onSave }) => {
       setErrors(prev => ({ ...prev, videoUrl: null }));
     }
     
-    
     if (lessonData.videoType === 'youtube') {
       
-      const youtubeRegex = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-      const match = url.match(youtubeRegex);
-      
-      if (match && match[1]) {
-        setVideoPreview(`https://www.youtube.com/embed/${match[1]}`);
-        setErrors(prev => ({ ...prev, videoUrl: null }));
+      if (validateYouTubeUrl(url)) {
+        const videoId = getYouTubeVideoId(url);
+        if (videoId) {
+          setVideoPreview(`https://www.youtube.com/embed/${videoId}`);
+          setErrors(prev => ({ ...prev, videoUrl: null }));
+        } else {
+          setVideoPreview(null);
+          setErrors(prev => ({ ...prev, videoUrl: 'Could not extract YouTube video ID' }));
+        }
       } else if (url) {
         setVideoPreview(null);
         setErrors(prev => ({ ...prev, videoUrl: 'Please enter a valid YouTube URL' }));
@@ -85,17 +123,14 @@ const VideoLessonForm = ({ moduleId, onCancel, onSave }) => {
     }
   };
   
-  
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
     
     if (!file.type.startsWith('video/')) {
       setErrors(prev => ({ ...prev, file: 'Please select a valid video file' }));
       return;
     }
-    
     
     if (file.size > 500 * 1024 * 1024) {
       setErrors(prev => ({ ...prev, file: 'File size should not exceed 500MB' }));
@@ -105,14 +140,11 @@ const VideoLessonForm = ({ moduleId, onCancel, onSave }) => {
     setUploadedFile(file);
     setErrors(prev => ({ ...prev, file: null }));
     
-    
     const previewUrl = URL.createObjectURL(file);
     setVideoPreview(previewUrl);
     
-    
     setLessonData(prev => ({ ...prev, videoUrl: file.name }));
   };
-  
   
   const handleVideoDurationLoad = (e) => {
     const duration = Math.round(e.target.duration);
@@ -125,7 +157,6 @@ const VideoLessonForm = ({ moduleId, onCancel, onSave }) => {
     }));
   };
   
-  
   const validateForm = () => {
     const newErrors = {};
     
@@ -133,12 +164,14 @@ const VideoLessonForm = ({ moduleId, onCancel, onSave }) => {
       newErrors.title = 'Video title is required';
     }
     
-    if (!lessonData.videoUrl.trim()) {
-      if (lessonData.videoType === 'upload' && !uploadedFile) {
-        newErrors.file = 'Please upload a video file';
-      } else {
-        newErrors.videoUrl = `Please enter a valid ${lessonData.videoType === 'youtube' ? 'YouTube' : 'Vimeo'} URL`;
-      }
+    if (lessonData.videoType === 'youtube' && !lessonData.videoUrl.trim()) {
+      newErrors.videoUrl = 'Please enter a YouTube URL';
+    } else if (lessonData.videoType === 'youtube' && !validateYouTubeUrl(lessonData.videoUrl)) {
+      newErrors.videoUrl = 'Please enter a valid YouTube URL';
+    } else if (lessonData.videoType === 'vimeo' && !lessonData.videoUrl.trim()) {
+      newErrors.videoUrl = 'Please enter a Vimeo URL';
+    } else if (lessonData.videoType === 'upload' && !uploadedFile) {
+      newErrors.file = 'Please upload a video file';
     }
     
     if (lessonData.duration && !/^\d+:\d{2}$|^\d+$/.test(lessonData.duration)) {
@@ -148,7 +181,6 @@ const VideoLessonForm = ({ moduleId, onCancel, onSave }) => {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  
   
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -161,27 +193,30 @@ const VideoLessonForm = ({ moduleId, onCancel, onSave }) => {
     
     try {
       
+      let videoUrl = lessonData.videoUrl;
       
-      
-      
-      await new Promise(resolve => setTimeout(resolve, 1200));
+      if (lessonData.videoType === 'youtube' && validateYouTubeUrl(videoUrl)) {
+        const videoId = getYouTubeVideoId(videoUrl);
+        if (videoId) {
+          videoUrl = `https://www.youtube.com/embed/${videoId}`;
+        }
+      }
       
       
       const formattedData = {
-        ...lessonData,
+        title: lessonData.title,
+        videoUrl: videoUrl,  
+        description: lessonData.description || '',
+        duration: lessonData.duration || 0,
         moduleId,
-        type: 'video'
+        isPublished: lessonData.isPublished
       };
       
       
-      
       if (uploadedFile && lessonData.videoType === 'upload') {
-        
-        
-        
-        
         formattedData.videoUrl = `uploads/${uploadedFile.name}`;
       }
+      
       
       onSave(formattedData);
     } catch (error) {
@@ -191,6 +226,7 @@ const VideoLessonForm = ({ moduleId, onCancel, onSave }) => {
       setIsSubmitting(false);
     }
   };
+  
   
   return (
     <motion.form 
@@ -386,7 +422,7 @@ const VideoLessonForm = ({ moduleId, onCancel, onSave }) => {
       </div>
       
       {/* Video Description with Markdown Support */}
-        <div>
+      <div>
         <div className="flex justify-between items-center mb-1">
             <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Video Description
@@ -433,10 +469,8 @@ const VideoLessonForm = ({ moduleId, onCancel, onSave }) => {
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Use Markdown to format your description. <a href="#" className="text-primary-600 dark:text-primary-400 hover:underline" target="_blank">Learn more</a>
         </p>
-        </div>
+      </div>
 
-      
-      
       {/* Additional Options */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Video Duration */}

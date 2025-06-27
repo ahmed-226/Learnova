@@ -11,7 +11,7 @@ const CourseDetailsPage = () => {
   const navigate = useNavigate();
   const { api, user } = useAuth();
   
-  // State
+  
   const [course, setCourse] = useState(null);
   const [relatedCourses, setRelatedCourses] = useState([]);
   const [activeModule, setActiveModule] = useState(null);
@@ -20,53 +20,79 @@ const CourseDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Fetch course data
+  
   useEffect(() => {
 
-      if (!courseId) {
-    console.error("Course ID is undefined");
-    navigate("/courses"); // Redirect to courses page
-    return;
-  }
+    if (!courseId) {
+      console.error("Course ID is undefined");
+      navigate("/courses"); 
+      return;
+    }
+
 
     const fetchCourseData = async () => {
       try {
         setLoading(true);
         
-        // Fetch course details
+        
         const courseResponse = await api.get(`/courses/${courseId}`);
+        console.log('Course Response:', courseResponse.data);
+        
+        
+        console.log('Response structure:', Object.keys(courseResponse.data));
+        
+        
+        if (courseResponse.data && courseResponse.data.modules) {
+          console.log('Modules found:', courseResponse.data.modules.length);
+        } else {
+          console.log('No modules property found in the response');
+          
+          courseResponse.data.modules = [];
+        }
+        
+        
+        if (!courseResponse.data._count) {
+          courseResponse.data._count = {};
+        }
+        
+        courseResponse.data._count = {
+          progress: courseResponse.data._count.progress || 0,
+          lessons: courseResponse.data._count.lessons || 0,
+          quizzes: courseResponse.data._count.quizzes || 0,
+          assignments: courseResponse.data._count.assignments || 0
+        };
+        
         setCourse(courseResponse.data);
         
-        // Fetch related courses (same category)
-        if (courseResponse.data.category) {
-          const relatedResponse = await api.get(`/courses?category=${courseResponse.data.category.toLowerCase()}&limit=3`);
-          setRelatedCourses(relatedResponse.data.courses.filter(c => c.id !== parseInt(courseId)));
-        }
         
-        // Check if user is enrolled (only if logged in)
         if (user) {
           try {
-            const enrollmentResponse = await api.get(`/users/dashboard`);
-            const enrolledCourses = enrollmentResponse.data.enrolledCourses || [];
-            const isUserEnrolled = enrolledCourses.some(ec => ec.id === parseInt(courseId));
+            const enrollmentCheck = await api.get(`/users/${user.id}/enrollments`);
+            const isUserEnrolled = enrollmentCheck.data.some(
+              enrollment => enrollment.courseId === parseInt(courseId)
+            );
             setIsEnrolled(isUserEnrolled);
-          } catch (enrollmentError) {
-            console.log('Could not fetch enrollment status:', enrollmentError);
+          } catch (enrollError) {
+            console.error('Error checking enrollment:', enrollError);
+            
           }
         }
-        
       } catch (error) {
         console.error('Error fetching course data:', error);
-        setError('Failed to load course data');
+        if (error.response) {
+          console.error('Error response:', error.response.data);
+          setError(error.response.data.error || 'Failed to load course data');
+        } else {
+          setError('Failed to load course data. Please check your connection.');
+        }
       } finally {
         setLoading(false);
       }
-    };
-    
+    };    
     fetchCourseData();
   }, [courseId, api, user]);
   
-  // Toggle module expansion
+  
   const toggleModule = (moduleId) => {
     if (activeModule === moduleId) {
       setActiveModule(null);
@@ -75,7 +101,7 @@ const CourseDetailsPage = () => {
     }
   };
 
-  // Handle enrollment
+  
   const handleEnrollment = async () => {
     if (!user) {
       navigate('/login', { state: { from: `/courses/${courseId}` } });
@@ -88,7 +114,7 @@ const CourseDetailsPage = () => {
       await api.post(`/courses/${courseId}/enroll`);
       setIsEnrolled(true);
       
-      // Show success message
+      
       alert('Successfully enrolled in the course!');
     } catch (error) {
       console.error('Enrollment error:', error);
@@ -99,7 +125,7 @@ const CourseDetailsPage = () => {
     }
   };
 
-  // Handle continue learning
+  
   const handleContinueLearning = () => {
     navigate(`/courses/${courseId}/content`);
   };
@@ -109,7 +135,7 @@ const CourseDetailsPage = () => {
     visible: { opacity: 1, y: 0 }
   };
 
-  // Loading state
+  
   if (loading) {
     return (
       <div className="flex flex-col min-h-screen bg-primary-50 dark:bg-dark-bg">
@@ -125,7 +151,7 @@ const CourseDetailsPage = () => {
     );
   }
 
-  // Error state
+  
   if (error || !course) {
     return (
       <div className="flex flex-col min-h-screen bg-primary-50 dark:bg-dark-bg">
