@@ -147,190 +147,204 @@ const handleSaveTextLesson = async (lessonData) => {
     };
     
     
-    const updatedModules = modules.map(module => {
-      if (module.id === selectedModule) {
-        return {
-          ...module,
-          content: [...module.content, newLesson].sort((a, b) => a.order - b.order)
-        };
-      }
-      return module;
-    });
-    
-    setModules(updatedModules);
-    setSelectedContentType(null);
-    
-  } catch (error) {
-    console.error('Error creating lesson:', error);
-    alert('Failed to create lesson. Please try again.');
-  } finally {
-    setIsSubmitting(false);
-  }
-};
-
-const handleSaveAssignment = async (assignmentData) => {
-  try {
-    
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    
-    const newAssignment = {
-      id: Date.now(),
-      type: 'assignment',
-      title: assignmentData.title,
-      instructions: assignmentData.instructions,
-      submissionType: assignmentData.submissionType,
-      allowedFileTypes: assignmentData.allowedFileTypes,
-      maxFileSize: assignmentData.maxFileSize,
-      deadline: assignmentData.deadline,
-      totalPoints: assignmentData.totalPoints,
-      passingGrade: assignmentData.passingGrade,
-      isGroupAssignment: assignmentData.isGroupAssignment,
-      isPublished: assignmentData.isPublished,
-      order: 0
-    };
-    
-    
-    const updatedModules = modules.map(module => {
-      if (module.id === selectedModule) {
-        
-        const highestOrder = module.content.length > 0 
-          ? Math.max(...module.content.map(item => item.order))
-          : 0;
-        
-        
-        const newContent = {
-          ...newAssignment,
-          order: highestOrder + 1
-        };
-        
-        return {
-          ...module,
-          content: [...module.content, newContent]
-        };
-      }
-      return module;
-    });
-    
-    setModules(updatedModules);
-    setSelectedContentType(null); 
-    
-    
-    alert('Assignment created successfully!');
-  } catch (error) {
-    console.error('Error creating assignment:', error);
-    alert('Failed to create assignment. Please try again.');
-  }
-};
-
-    const handleSaveQuiz = async (quizData) => {
-  try {
-    
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    
-    const newQuiz = {
-      id: Date.now(),
-      type: 'quiz',
-      title: quizData.title,
-      description: quizData.description,
-      timeLimit: quizData.timeLimit,
-      passingScore: quizData.passingScore,
-      shuffleQuestions: quizData.shuffleQuestions,
-      showCorrectAnswers: quizData.showCorrectAnswers,
-      isPublished: quizData.isPublished,
-      questions: quizData.questions,
-      totalPoints: quizData.totalPoints,
-      order: 0
-    };
-    
-    
-    const updatedModules = modules.map(module => {
-      if (module.id === selectedModule) {
-        
-        const highestOrder = module.content.length > 0 
-          ? Math.max(...module.content.map(item => item.order))
-          : 0;
-        
-        
-        const newContent = {
-          ...newQuiz,
-          order: highestOrder + 1
-        };
-        
-        return {
-          ...module,
-          content: [...module.content, newContent]
-        };
-      }
-      return module;
-    });
-    
-    setModules(updatedModules);
-    setSelectedContentType(null); 
-    
-    
-    alert('Quiz created successfully!');
-  } catch (error) {
-    console.error('Error creating quiz:', error);
-    alert('Failed to create quiz. Please try again.');
-  }
-};
-
-
-    const handleSaveVideoLesson = async (lessonData) => {
-        try {
-            
-            setIsSubmitting(true);
-            await new Promise(resolve => setTimeout(resolve, 800));
-            
-            
-            const newLesson = {
-            id: Date.now(),
-            type: 'video',
-            title: lessonData.title,
-            videoUrl: lessonData.videoUrl,
-            videoType: lessonData.videoType,
-            description: lessonData.description,
-            duration: lessonData.duration,
-            isPublished: lessonData.isPublished,
-            order: 0
-            };
-            
-            
-            const updatedModules = modules.map(module => {
-            if (module.id === selectedModule) {
-                
-                const highestOrder = module.content.length > 0 
-                ? Math.max(...module.content.map(item => item.order))
-                : 0;
-                
-                
-                const newContent = {
-                ...newLesson,
-                order: highestOrder + 1
-                };
-                
-                return {
-                ...module,
-                content: [...module.content, newContent]
-                };
-            }
-            return module;
-            });
-            
-            setModules(updatedModules);
-            setSelectedContentType(null); 
-            
-            
-            alert('Video lesson created successfully!');
-        } catch (error) {
-            console.error('Error creating video lesson:', error);
-            alert('Failed to create video lesson. Please try again.');
+  const updatedModules = modules.map(module => {
+        if (module.id === selectedModule) {
+          return {
+            ...module,
+            content: [...module.content, newLesson].sort((a, b) => a.order - b.order)
+          };
         }
-        };
+        return module;
+      });
+      
+      setModules(updatedModules);
+      setSelectedContentType(null);
+      
+    } catch (error) {
+      console.error('Error creating lesson:', error);
+      alert('Failed to create lesson. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
+  const handleSaveAssignment = async (assignmentData) => {
+    try {
+      setIsSubmitting(true);
+      
+      // Prepare the data for API
+      const newAssignmentData = {
+        title: assignmentData.title,
+        description: assignmentData.instructions || '',
+        moduleId: selectedModule,
+        dueDate: assignmentData.deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // default: 1 week from now
+        totalPoints: assignmentData.totalPoints || 100
+      };
+      
+      // Send to API
+      const response = await api.post('/assignments', newAssignmentData);
+      
+      // Update the local state with the response
+      const newAssignment = {
+        id: response.data.id,
+        type: 'assignment',
+        title: response.data.title,
+        instructions: response.data.description,
+        dueDate: response.data.dueDate,
+        order: response.data.order || 0
+      };
+      
+      // Update modules state
+      const updatedModules = modules.map(module => {
+        if (module.id === selectedModule) {
+          return {
+            ...module,
+            content: [...module.content, newAssignment].sort((a, b) => a.order - b.order)
+          };
+        }
+        return module;
+      });
+      
+      setModules(updatedModules);
+      setSelectedContentType(null);
+      
+      alert('Assignment created successfully!');
+    } catch (error) {
+      console.error('Error creating assignment:', error);
+      alert('Failed to create assignment. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
+  const handleSaveQuiz = async (quizData) => {
+    try {
+      setIsSubmitting(true);
+      
+      // Prepare the data for API
+      const newQuizData = {
+        title: quizData.title,
+        moduleId: selectedModule,
+        description: quizData.description || '',
+        timeLimit: quizData.timeLimit || null,
+        passingScore: quizData.passingScore || 60,
+        shuffleQuestions: quizData.shuffleQuestions || false,
+        showCorrectAnswers: quizData.showCorrectAnswers || false,
+        isPublished: quizData.isPublished || false,
+        questions: quizData.questions || []
+      };
+      
+      // Send to API
+      const response = await api.post('/quizzes', newQuizData);
+      
+      // Update the local state with the response
+      const newQuiz = {
+        id: response.data.id,
+        type: 'quiz',
+        title: response.data.title,
+        description: response.data.description || '',
+        order: response.data.order || 0
+      };
+      
+      // Update modules state
+      const updatedModules = modules.map(module => {
+        if (module.id === selectedModule) {
+          return {
+            ...module,
+            content: [...module.content, newQuiz].sort((a, b) => a.order - b.order)
+          };
+        }
+        return module;
+      });
+      
+      setModules(updatedModules);
+      setSelectedContentType(null);
+      
+      alert('Quiz created successfully!');
+    } catch (error) {
+      console.error('Error creating quiz:', error);
+      alert('Failed to create quiz. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSaveVideoLesson = async (lessonData) => {
+    try {
+      setIsSubmitting(true);
+      
+      // Format YouTube URL properly if needed
+      let videoUrl = lessonData.videoUrl;
+      
+      // Check if it's a YouTube URL and standardize it
+      if (videoUrl && videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
+        // Extract video ID from different YouTube URL formats
+        let videoId = '';
+        
+        if (videoUrl.includes('youtube.com/watch?v=')) {
+          videoId = videoUrl.split('watch?v=')[1];
+          // Remove any additional parameters
+          videoId = videoId.split('&')[0];
+        } else if (videoUrl.includes('youtu.be/')) {
+          videoId = videoUrl.split('youtu.be/')[1];
+          // Remove any additional parameters
+          videoId = videoId.split('?')[0];
+        }
+        
+        if (videoId) {
+          // Create the standardized embed URL
+          videoUrl = `https://www.youtube.com/embed/${videoId}`;
+        }
+      }
+      
+      // Prepare the data for API
+      const newLessonData = {
+        title: lessonData.title,
+        content: lessonData.description || '',
+        moduleId: selectedModule,
+        videoUrl: videoUrl,  // Use the processed URL
+        duration: lessonData.duration || 0,
+        type: 'VIDEO'
+      };
+      
+      console.log("Sending video lesson data:", newLessonData);
+      
+      // Send to API
+      const response = await api.post('/lessons', newLessonData);
+      
+      // Update the local state with the response
+      const newLesson = {
+        id: response.data.id,
+        type: 'video',
+        title: response.data.title,
+        videoUrl: response.data.videoUrl,
+        description: response.data.content,
+        duration: response.data.duration,
+        order: response.data.order || 0
+      };
+      
+      // Update modules state
+      const updatedModules = modules.map(module => {
+        if (module.id === selectedModule) {
+          return {
+            ...module,
+            content: [...module.content, newLesson].sort((a, b) => a.order - b.order)
+          };
+        }
+        return module;
+      });
+      
+      setModules(updatedModules);
+      setSelectedContentType(null);
+      
+      alert('Video lesson created successfully!');
+    } catch (error) {
+      console.error('Error creating video lesson:', error);
+      alert('Failed to create video lesson. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   
   const handleModuleFormChange = (e) => {
     const { name, value } = e.target;
@@ -476,13 +490,30 @@ const handleDeleteModule = async (moduleId) => {
   const handleDeleteContent = async (moduleId, contentId, contentType) => {
     if (window.confirm(`Are you sure you want to delete this ${contentType}? This action cannot be undone.`)) {
       try {
+        setIsSubmitting(true);
         
+        let endpoint;
+        switch(contentType) {
+          case 'text':
+            endpoint = `/lessons/${contentId}`;
+            break;
+          case 'video':
+            endpoint = `/lessons/${contentId}`;
+            break;
+          case 'quiz':
+            endpoint = `/quizzes/${contentId}`;
+            break;
+          case 'assignment':
+            endpoint = `/assignments/${contentId}`;
+            break;
+          default:
+            throw new Error(`Unknown content type: ${contentType}`);
+        }
         
+        // Delete from the API
+        await api.delete(endpoint);
         
-        
-        
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
+        // Update the modules state to remove the deleted content
         const updatedModules = modules.map(module => {
           if (module.id === moduleId) {
             return {
@@ -494,14 +525,16 @@ const handleDeleteModule = async (moduleId) => {
         });
         
         setModules(updatedModules);
+        alert(`${contentType.charAt(0).toUpperCase() + contentType.slice(1)} deleted successfully!`);
       } catch (err) {
         console.error(`Error deleting ${contentType}:`, err);
         alert(`Failed to delete ${contentType}. Please try again.`);
+      } finally {
+        setIsSubmitting(false);
       }
     }
-  };
-  
-  
+  };  
+    
   const getContentIcon = (type) => {
     switch (type) {
       case 'text':
