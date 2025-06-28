@@ -11,25 +11,53 @@ const CourseCard = ({ course }) => {
 
   const color = course.color || getProgressColor(course.progress);
 
-    if (!course.id) {
+  if (!course.id) {
     console.error("Course ID is missing:", course);
+    return (
+      <div className="card h-[280px] flex flex-col overflow-hidden">
+        <div className="p-4 flex items-center justify-center">
+          <p className="text-gray-500">Invalid course data</p>
+        </div>
+      </div>
+    );
   }
+
+  const courseTitle = course.title || 'Unknown Course';
+  const courseProgress = course.progress || 0;
+  const instructorName = course.instructor || 'Unknown Instructor';
+  const lastAccessed = course.lastAccessed || 'Never';
 
   return (
     <div className="card h-[280px] flex flex-col overflow-hidden">
       {/* Course Image */}
       <div className="relative h-32 bg-gray-200 dark:bg-gray-700">
-        <img 
-          src={course.coverImage} 
-          alt={course.title} 
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            e.target.src = '/api/placeholder/300/200'; 
-          }}
-        />
+        {course.coverImage ? (
+          <img 
+            src={course.coverImage} 
+            alt={courseTitle}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.nextElementSibling.style.display = 'flex';
+            }}
+          />
+        ) : null}
+        
+        {/* Fallback display when no image */}
+        <div 
+          className={`absolute inset-0 flex items-center justify-center ${course.coverImage ? 'hidden' : 'flex'}`}
+        >
+          <div className="text-center">
+            <svg className="h-12 w-12 text-gray-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+            <p className="text-sm text-gray-500">Course</p>
+          </div>
+        </div>
+        
         {course.isInstructor && (
           <span className="absolute top-2 right-2 bg-primary-600 text-white text-xs px-2 py-1 rounded">
-            {course.studentsEnrolled} students
+            {course.studentsEnrolled || 0} students
           </span>
         )}
       </div>
@@ -38,29 +66,40 @@ const CourseCard = ({ course }) => {
       <div className="p-4 flex flex-col flex-grow">
         <div className="flex justify-between items-start mb-3">
           <h3 className="text-lg font-medium text-primary-900 dark:text-primary-100 line-clamp-2">
-            {course.title}
+            {courseTitle}
           </h3>
-          <span className={`bg-${color}-100 dark:bg-${color}-900/30 text-${color}-700 dark:text-${color}-400 text-xs px-2 py-1 rounded-md whitespace-nowrap ml-2`}>
-            {course.isCompleted ? 'Completed' : `${course.progress}%`}
+          <span className={`px-2 py-1 rounded-md text-xs whitespace-nowrap ml-2 ${
+            course.isCompleted 
+              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+              : `bg-${color}-100 dark:bg-${color}-900/30 text-${color}-700 dark:text-${color}-400`
+          }`}>
+            {course.isCompleted ? 'Completed' : `${courseProgress}%`}
           </span>
         </div>
         
         <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
-          {course.isInstructor ? 'Your Course' : `Instructor: ${course.instructor}`}
+          {course.isInstructor ? 'Your Course' : `Instructor: ${instructorName}`}
         </p>
         
         {/* Progress Bar */}
         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-4">
           <div 
-            className={`h-2.5 rounded-full bg-${color}-500`} 
-            style={{ width: `${course.progress}%` }}
+            className={`h-2.5 rounded-full ${
+              course.isCompleted 
+                ? 'bg-green-500' 
+                : color === 'green' ? 'bg-green-500'
+                : color === 'blue' ? 'bg-blue-500'
+                : color === 'yellow' ? 'bg-yellow-500'
+                : 'bg-red-500'
+            }`}
+            style={{ width: `${courseProgress}%` }}
           ></div>
         </div>
         
         {/* Footer */}
         <div className="flex justify-between items-center mt-auto">
           <span className="text-xs text-gray-500 dark:text-gray-400">
-            Last accessed: {course.lastAccessed}
+            Last accessed: {lastAccessed}
           </span>
           <Link 
             to={course.isInstructor ? `/courses/${course.id}/modules` : `/courses/${course.id}`}
@@ -72,6 +111,7 @@ const CourseCard = ({ course }) => {
       </div>
     </div>
   );
+
 };
 
 export default CourseCard;

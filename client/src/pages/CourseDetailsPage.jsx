@@ -20,15 +20,13 @@ const CourseDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  
-  useEffect(() => {
 
+  useEffect(() => {
     if (!courseId) {
       console.error("Course ID is undefined");
       navigate("/courses"); 
       return;
     }
-
 
     const fetchCourseData = async () => {
       try {
@@ -39,14 +37,10 @@ const CourseDetailsPage = () => {
         console.log('Course Response:', courseResponse.data);
         
         
-        console.log('Response structure:', Object.keys(courseResponse.data));
-        
-        
         if (courseResponse.data && courseResponse.data.modules) {
           console.log('Modules found:', courseResponse.data.modules.length);
         } else {
           console.log('No modules property found in the response');
-          
           courseResponse.data.modules = [];
         }
         
@@ -67,16 +61,38 @@ const CourseDetailsPage = () => {
         
         if (user) {
           try {
-            const enrollmentCheck = await api.get(`/users/${user.id}/enrollments`);
-            const isUserEnrolled = enrollmentCheck.data.some(
-              enrollment => enrollment.courseId === parseInt(courseId)
-            );
-            setIsEnrolled(isUserEnrolled);
+            console.log('Checking enrollment for user:', user.id, 'course:', courseId);
+            
+            
+            const enrollmentResponse = await api.get(`/courses/${courseId}/enrollment-status`);
+            console.log('Enrollment Response:', enrollmentResponse.data);
+            
+            setIsEnrolled(enrollmentResponse.data.isEnrolled);
           } catch (enrollError) {
             console.error('Error checking enrollment:', enrollError);
             
+            try {
+              const enrollmentCheck = await api.get(`/users/${user.id}/enrollments`);
+              const isUserEnrolled = enrollmentCheck.data.some(
+                enrollment => enrollment.courseId === parseInt(courseId)
+              );
+              setIsEnrolled(isUserEnrolled);
+            } catch (fallbackError) {
+              console.error('Fallback enrollment check failed:', fallbackError);
+              setIsEnrolled(false);
+            }
           }
         }
+        
+        
+        try {
+          const relatedResponse = await api.get(`/courses?category=${courseResponse.data.category}&limit=3`);
+          setRelatedCourses(relatedResponse.data.courses?.filter(c => c.id !== parseInt(courseId)) || []);
+        } catch (relatedError) {
+          console.error('Error fetching related courses:', relatedError);
+          setRelatedCourses([]);
+        }
+        
       } catch (error) {
         console.error('Error fetching course data:', error);
         if (error.response) {
@@ -89,6 +105,7 @@ const CourseDetailsPage = () => {
         setLoading(false);
       }
     };    
+    
     fetchCourseData();
   }, [courseId, api, user]);
   
@@ -448,26 +465,32 @@ const CourseDetailsPage = () => {
                       </Link>
                     </div>
                     
+                    {/* Forum Preview */}
                     <div className="space-y-4">
                       <div className="flex items-start p-4 border dark:border-gray-700 rounded-lg">
                         <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="User" className="w-10 h-10 rounded-full mr-4" />
                         <div className="flex-grow">
                           <div className="flex justify-between items-center mb-1">
-                            <h4 className="font-medium">Help with Module 2 Exercise</h4>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">2 days ago</span>
+                            <h4 className="font-medium">Welcome to the Course!</h4>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">3 days ago</span>
                           </div>
-                          <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">I'm having trouble understanding how to implement the algorithm from the second lecture.</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+                            Welcome everyone! Feel free to ask questions and share your progress here.
+                          </p>
                           <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                            <span className="mr-4">5 replies</span>
-                            <span>Last reply: 12 hours ago</span>
+                            <span className="mr-4">12 replies</span>
+                            <span>Last reply: 2 hours ago</span>
                           </div>
                         </div>
                       </div>
                       
                       <div className="text-center">
-                        <button className="text-primary-600 dark:text-primary-400 hover:underline text-sm">
-                          Show More Discussions
-                        </button>
+                        <Link 
+                          to={`/courses/${courseId}/forum`}
+                          className="text-primary-600 dark:text-primary-400 hover:underline text-sm"
+                        >
+                          View All Discussions
+                        </Link>
                       </div>
                     </div>
                   </div>
