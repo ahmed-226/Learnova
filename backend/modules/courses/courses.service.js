@@ -323,8 +323,18 @@ const listCourses=async (filters = {})=>{
 
 const enrollInCourse = async (courseId, userId) => {
   try {
+    
+    const numericCourseId = Number(courseId);
+    const numericUserId = Number(userId);
+    
+    if (isNaN(numericCourseId)) {
+      const error = new Error('Invalid course ID');
+      error.status = HTTP_STATUS.BAD_REQUEST;
+      throw error;
+    }
+  
     const course = await prisma.course.findUnique({
-      where: { id: Number(courseId) }
+      where: { id: numericCourseId }
     });
 
     if (!course) {
@@ -336,8 +346,8 @@ const enrollInCourse = async (courseId, userId) => {
     const existingProgress = await prisma.progress.findUnique({
       where: {
         userId_courseId: {
-          userId: Number(userId),
-          courseId: Number(courseId)
+          userId: numericUserId,
+          courseId: numericCourseId
         }
       }
     });
@@ -350,16 +360,16 @@ const enrollInCourse = async (courseId, userId) => {
 
     const progress = await prisma.progress.create({
       data: {
-        userId: Number(userId),
-        courseId: Number(courseId),
+        userId: numericUserId,
+        courseId: numericCourseId,
         progress: 0
       }
     });
 
     return progress;
   } catch (error) {
-    logger.error(`Error enrolling in course: ${error.message}`);
-    throw error;
+    logger.error(`Error in enrollInCourse: ${error.message}`);
+    throw error; 
   }
 }
 
@@ -853,6 +863,25 @@ const reorderModuleContent = async (moduleId, contentIds, instructorId) => {
   }
 };
 
+const checkUserEnrollment = async (courseId, userId) => {
+  try {
+    const enrollment = await prisma.progress.findUnique({
+      where: {
+        userId_courseId: {
+          userId: Number(userId),
+          courseId: Number(courseId)
+        }
+      }
+    });
+    
+    return !!enrollment; 
+  } catch (error) {
+    logger.error(`Error checking enrollment: ${error.message}`);
+    return false;
+  }
+};
+
+
 
 module.exports = {
   createCourse,
@@ -869,5 +898,6 @@ module.exports = {
   getCourseContent,
   getModulesByCourse,
   reorderModules,
-  reorderModuleContent
+  reorderModuleContent,
+  checkUserEnrollment
 };
