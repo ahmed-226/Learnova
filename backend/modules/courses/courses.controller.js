@@ -230,6 +230,19 @@ const reorderModuleContent = async (req, res, next) => {
 };
 
 
+const checkEnrollment = async (req, res, next) => {
+  try {
+    const courseId = req.params.courseId;
+    const userId = req.user.id;
+    
+    const isEnrolled = await courseService.checkUserEnrollment(courseId, userId);
+    res.status(HTTP_STATUS.OK).json({ isEnrolled });
+  } catch (error) {
+    logger.error(`Error checking enrollment: ${error.message}`);
+    next(error);
+  }
+};
+
 module.exports = {
   createCourse,
   getCourseById,
@@ -239,11 +252,12 @@ module.exports = {
   listCourses,
   enrollInCourse,
   unenrollFromCourse,
-  getEnrolledStudents, 
+  getEnrolledStudents,
   addModule,
   updateModule,
   deleteModule,
   getModulesByCourse,
   reorderModules,
-  reorderModuleContent
+  reorderModuleContent,
+  checkEnrollment  
 };
