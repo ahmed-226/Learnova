@@ -1,13 +1,20 @@
 import React, { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import CreatePostForm from './CreatePostForm';
-import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 
-const PostItem = ({ post, isFirstPost = false, isReply = false, currentUser }) => {
+const PostItem = ({ post, isFirstPost = false, isReply = false, currentUser, onPostUpdated, onPostDeleted, courseId: propCourseId }) => {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(post.content);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const { api } = useAuth();
+  const navigate = useNavigate();
+  const { courseId: paramCourseId } = useParams();
+  
+  
+  const courseId = propCourseId || paramCourseId;
   
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -31,15 +38,27 @@ const PostItem = ({ post, isFirstPost = false, isReply = false, currentUser }) =
     setError(null);
     
     try {
-      await axios.put(`/api/forums/posts/${post.id}`, {
-        content: editedContent
+      console.log('Updating post:', post.id, { content: editedContent });
+      
+      const response = await api.put(`/forums/posts/${post.id}`, {
+        content: editedContent.trim()
       });
       
-      post.content = editedContent;
+      console.log('Post update response:', response.data);
+      
+      
+      post.content = editedContent.trim();
+      post.updatedAt = new Date().toISOString();
       setIsEditing(false);
+      
+      
+      if (onPostUpdated) {
+        onPostUpdated(response.data);
+      }
+      
     } catch (err) {
       console.error('Error updating post:', err);
-      setError(err.response?.data?.message || 'Failed to update post. Please try again.');
+      setError(err.response?.data?.error || 'Failed to update post. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -51,13 +70,76 @@ const PostItem = ({ post, isFirstPost = false, isReply = false, currentUser }) =
     }
     
     try {
-      await axios.delete(`/api/forums/posts/${post.id}`);
+      console.log('Deleting post:', post.id);
       
-      //
-      window.location.reload();
+      const response = await api.delete(`/forums/posts/${post.id}`);
+      
+      console.log('Post deletion response:', response.data);
+      
+      
+      if (response.data.threadDeleted) {
+        
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+        toast.textContent = 'Thread deleted successfully! Redirecting to forum...';
+        document.body.appendChild(toast);
+        
+        
+        setTimeout(() => {
+          if (document.body.contains(toast)) {
+            document.body.removeChild(toast);
+          }
+        }, 3000);
+        
+        
+        setTimeout(() => {
+          navigate(`/courses/${courseId}/forum`);
+        }, 1500);
+        return;
+      }
+      
+      
+      if (onPostDeleted) {
+        onPostDeleted(post.id);
+      } else {
+        
+        window.location.reload();
+      }
+      
     } catch (err) {
       console.error('Error deleting post:', err);
-      alert('Failed to delete post. Please try again.');
+      alert(err.response?.data?.error || 'Failed to delete post. Please try again.');
+    }
+  };
+
+  const handleReplyCreated = async (newReply) => {
+    try {
+      console.log('Creating reply with data:', newReply);
+      
+      
+      const response = await api.post(`/forums/threads/${post.threadId}/posts`, {
+        content: newReply.content,
+        parentId: post.id
+      });
+      
+      console.log('Reply creation response:', response.data);
+      
+      
+      setShowReplyForm(false);
+      
+      
+      if (onPostUpdated) {
+        onPostUpdated(response.data);
+      }
+      
+      
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+      
+    } catch (err) {
+      console.error('Error creating reply:', err);
+      alert('Failed to create reply. Please try again.');
     }
   };
   
@@ -103,7 +185,11 @@ const PostItem = ({ post, isFirstPost = false, isReply = false, currentUser }) =
               
               <div className="flex justify-end space-x-2">
                 <button
-                  onClick={() => setIsEditing(false)}
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditedContent(post.content);
+                    setError(null);
+                  }}
                   className="btn btn-sm btn-outline"
                   disabled={isSubmitting}
                 >
@@ -160,10 +246,7 @@ const PostItem = ({ post, isFirstPost = false, isReply = false, currentUser }) =
           <CreatePostForm 
             threadId={post.threadId} 
             parentId={post.id}
-            onPostCreated={() => {
-              setShowReplyForm(false);
-              window.location.reload(); 
-            }}
+            onPostCreated={handleReplyCreated}
             onCancel={() => setShowReplyForm(false)}
           />
         </div>
