@@ -193,7 +193,7 @@ const checkRole = (requiredRole) => {
 
 const uploadAvatar = async (req, res, next) => {
   try {
-    // Debug the environment variables
+    
     console.log({
       cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
       api_key: process.env.CLOUDINARY_API_KEY,
@@ -204,7 +204,7 @@ const uploadAvatar = async (req, res, next) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
     
-    // Cloudinary already uploaded the file, we just need the URL
+    
     const avatarUrl = req.file.path;
     
     const updatedUser = await userService.updateProfile(req.user.id, {
@@ -284,12 +284,67 @@ const deleteUserAccount = async (req, res, next) => {
   }
 };
 
+
+
+const getEnrolledCourses = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const progress = await userService.getEnrolledCourses(userId);
+
+    const enrolledCourses = progress.map(p => ({
+      courseId: p.courseId,
+      course: p.course,
+      progress: p.progress || 0,
+      isCompleted: p.isCompleted || false,
+      lastAccessed: p.lastAccessed,
+      hoursSpent: p.hoursSpent || 0
+    }));
+
+    res.status(HTTP_STATUS.OK).json(enrolledCourses);
+  } catch (error) {
+    logger.error(`Error fetching enrolled courses for user ${req.user.id}: ${error.message}`);
+    next(error);
+  }
+};
+
+const getUserEnrollments = async (req, res, next) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const requestingUserId = req.user.id;
+    
+    
+    if (userId !== requestingUserId) {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({
+        error: 'Not authorized to view these enrollments'
+      });
+    }
+    
+    const enrollments = await prisma.progress.findMany({
+      where: { userId },
+      select: {
+        courseId: true,
+        progress: true,
+        isCompleted: true,
+        enrolledAt: true,
+        lastAccessed: true
+      }
+    });
+    
+    res.status(HTTP_STATUS.OK).json(enrollments);
+  } catch (error) {
+    logger.error(`Error fetching user enrollments: ${error.message}`);
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
   logout,
   getProfile,
   updateProfile,
+  getEnrolledCourses,
+  getUserEnrollments,
   uploadAvatar,
   getDashboard,
   getAllUsers,

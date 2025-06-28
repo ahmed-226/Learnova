@@ -22,6 +22,9 @@ router.get('/profile', controller.getProfile);
 router.put('/profile', validate({ body: schema.updateProfile }), controller.updateProfile);
 router.post('/upload-avatar', auth, avatarUpload, controller.uploadAvatar);
 router.get('/dashboard', controller.getDashboard);
+router.get('/enrolled-courses', controller.getEnrolledCourses);
+router.get('/:userId/enrollments', controller.getUserEnrollments);
+
 
 // Admin routes
 router.get('/', controller.checkRole('ADMIN'), controller.getAllUsers);
