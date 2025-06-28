@@ -291,7 +291,6 @@ const getUserDashboard = async (userId) => {
     
     const user = await getUserById(userId);
     
-    
     let dashboardData = {};
     
     if (user.role === 'STUDENT') {
@@ -304,6 +303,7 @@ const getUserDashboard = async (userId) => {
               id: true,
               title: true,
               description: true,
+              coverImage: true,
               instructor: {
                 select: {
                   id: true,
@@ -319,8 +319,12 @@ const getUserDashboard = async (userId) => {
       dashboardData = {
         user,
         enrolledCourses: progress.map(p => ({
-          ...p.course,
-          progress: p.progress
+          courseId: p.courseId,
+          course: p.course,
+          progress: p.progress || 0,
+          isCompleted: p.isCompleted || false,
+          lastAccessed: p.lastAccessed,
+          hoursSpent: p.hoursSpent || 0
         }))
       };
     } else if (user.role === 'INSTRUCTOR') {
@@ -330,7 +334,7 @@ const getUserDashboard = async (userId) => {
         include: {
           _count: {
             select: {
-              progress: true 
+              progress: true
             }
           }
         }
@@ -338,24 +342,7 @@ const getUserDashboard = async (userId) => {
       
       dashboardData = {
         user,
-        instructorCourses: courses.map(course => ({
-          ...course,
-          enrollmentCount: course._count.progress
-        }))
-      };
-    } else if (user.role === 'ADMIN') {
-      
-      const [userCount, courseCount] = await Promise.all([
-        prisma.user.count(),
-        prisma.course.count()
-      ]);
-      
-      dashboardData = {
-        user,
-        stats: {
-          userCount,
-          courseCount
-        }
+        instructorCourses: courses
       };
     }
     
@@ -421,9 +408,53 @@ const verifyUserPassword = async (userId, password) => {
 };
 
 
+const  getEnrolledCourses=async(userId)=> {
+  return await prisma.progress.findMany({
+    where: { userId },
+    include: {
+      course: {
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          coverImage: true,
+          instructor: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+const getUserEnrollments = async (userId) => {
+  try {
+    const enrollments = await prisma.progress.findMany({
+      where: { userId: Number(userId) },
+      select: {
+        courseId: true,
+        progress: true,
+        isCompleted: true,
+        enrolledAt: true,
+        lastAccessed: true
+      }
+    });
+    
+    return enrollments;
+  } catch (error) {
+    logger.error(`Error getting user enrollments: ${error.message}`);
+    throw error;
+  }
+};
+
 module.exports = {
   createUser,
   verifyCredentials,
+  getEnrolledCourses,
   getUserById,
   updateUser,
   updateProfile,
@@ -431,5 +462,6 @@ module.exports = {
   getAllUsers,
   getUserDashboard,
   changePassword,
-  verifyUserPassword
+  verifyUserPassword,
+  getUserEnrollments
 };
