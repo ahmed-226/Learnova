@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 
 const CreateThreadForm = ({ forumId, onThreadCreated, onCancel }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const { api } = useAuth();
   
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,23 +19,23 @@ const CreateThreadForm = ({ forumId, onThreadCreated, onCancel }) => {
     setIsSubmitting(true);
     setError(null);
     
-    setTimeout(() => {
-      try {
-        const newThread = {
-          title,
-          content
-        };
-        
-        onThreadCreated(newThread);
-        setTitle('');
-        setContent('');
-      } catch (err) {
-        console.error('Error creating thread:', err);
-        setError('Failed to create thread. Please try again.');
-      } finally {
-        setIsSubmitting(false);
-      }
-    }, 800);
+    try {
+      console.log('Submitting thread:', { title, content, forumId });
+      
+      await onThreadCreated({
+        title: title.trim(),
+        content: content.trim()
+      });
+      
+      setTitle('');
+      setContent('');
+      
+    } catch (err) {
+      console.error('Error creating thread:', err);
+      setError('Failed to create thread. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   return (
@@ -59,6 +61,7 @@ const CreateThreadForm = ({ forumId, onThreadCreated, onCancel }) => {
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-dark-card dark:text-gray-100"
             placeholder="What's your discussion about?"
             required
+            disabled={isSubmitting}
           />
         </div>
         
@@ -74,6 +77,7 @@ const CreateThreadForm = ({ forumId, onThreadCreated, onCancel }) => {
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-dark-card dark:text-gray-100"
             placeholder="Share your thoughts, questions, or insights..."
             required
+            disabled={isSubmitting}
           ></textarea>
         </div>
         
