@@ -71,55 +71,54 @@ const ProfilePage = () => {
         
         setUserStats({
           coursesCount: enrolledCourses.length,
-          hoursSpent: enrolledCourses.reduce((total, course) => total + (course.hoursSpent || 0), 0),
-          certificatesEarned: enrolledCourses.filter(course => course.isCompleted).length,
+          hoursSpent: enrolledCourses.reduce((total, courseProgress) => total + (courseProgress.hoursSpent || 0), 0),
+          certificatesEarned: enrolledCourses.filter(courseProgress => courseProgress.isCompleted).length,
           averageScore: enrolledCourses.length > 0 
-            ? Math.round(enrolledCourses.reduce((total, course) => total + (course.progress || 0), 0) / enrolledCourses.length)
+            ? Math.round(enrolledCourses.reduce((total, courseProgress) => total + (courseProgress.progress || 0), 0) / enrolledCourses.length)
             : 0
         });
         
         setUserCourses(enrolledCourses.map(courseProgress => ({
           id: courseProgress.course?.id || courseProgress.courseId,
-          title: courseProgress.course?.title || 'Course Title',
+          title: courseProgress.course?.title || 'Unknown Course',
           instructor: courseProgress.course?.instructor ? 
             `${courseProgress.course.instructor.firstName} ${courseProgress.course.instructor.lastName}` : 
-            'Instructor',
-          progress: courseProgress.progress || 0,
+            'Unknown Instructor',
+          progress: Math.round(courseProgress.progress || 0),
           color: getProgressColor(courseProgress.progress || 0),
           lastAccessed: courseProgress.lastAccessed ? 
             new Date(courseProgress.lastAccessed).toLocaleDateString() : 
             'Never',
           isCompleted: courseProgress.isCompleted || false,
-          coverImage: courseProgress.course?.coverImage || '/api/placeholder/300/200'
+          coverImage: courseProgress.course?.coverImage || null
         })));
-
+        
       } else if (userData.role === 'INSTRUCTOR' && dashboardData.instructorCourses) {
         const instructorCourses = dashboardData.instructorCourses;
         
         setUserStats({
           coursesCount: instructorCourses.length,
           studentsCount: instructorCourses.reduce((total, course) => total + (course._count?.progress || 0), 0),
-          hoursSpent: instructorCourses.length * 10, 
-          rating: 4.8 
+          hoursSpent: instructorCourses.length * 10,
+          rating: 4.8
         });
         
         setUserCourses(instructorCourses.map(course => ({
           id: course.id,
           title: course.title,
           instructor: 'You',
-          progress: 100, 
+          progress: 100,
           color: 'primary',
           lastAccessed: course.updatedAt ? 
             new Date(course.updatedAt).toLocaleDateString() : 
             'Never',
           isCompleted: true,
-          coverImage: course.coverImage || '/api/placeholder/300/200',
+          coverImage: course.coverImage || null,
           studentsEnrolled: course._count?.progress || 0,
           isInstructor: true
         })));
 
       } else {
-        
         setUserStats({
           coursesCount: 0,
           hoursSpent: 0,
@@ -136,7 +135,6 @@ const ProfilePage = () => {
       setIsLoading(false);
     }
   };
-
   
   const getProgressColor = (progress) => {
     if (progress >= 80) return 'green';
