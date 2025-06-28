@@ -19,7 +19,7 @@ router.get('/:courseId/content',
 // Protected routes 
 router.use(auth);
 
-// Student enrollment routes
+// Student enrollment routes (these should come before parameterized routes)
 router.post('/:courseId/enroll', 
   validate({ params: schema.enrollmentParam }), 
   controller.enrollInCourse
@@ -28,6 +28,7 @@ router.delete('/:courseId/enroll',
   validate({ params: schema.enrollmentParam }), 
   controller.unenrollFromCourse
 );
+router.get('/:courseId/enrollment-status', controller.checkEnrollment);
 
 
 // Instructor routes (requires INSTRUCTOR or ADMIN role)
