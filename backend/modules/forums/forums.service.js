@@ -40,8 +40,59 @@ const getForumByCourseId = async (courseId) => {
 
 
 const getThreadsByForumId = async (forumId, page = 1, limit = 10) => {
-    try {
+  try {
+    const skip = (page - 1) * limit;
+    
+    const [threads, totalCount] = await Promise.all([
+      prisma.thread.findMany({
+        where: { forumId: Number(forumId) },
+        skip,
+        take: limit,
+        orderBy: { updatedAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
+            }
+          },
+          _count: {
+            select: {
+              posts: true
+            }
+          }
+        }
+      }),
+      prisma.thread.count({
+        where: { forumId: Number(forumId) }
+      })
+    ]);
 
+    return {
+      threads: threads.map(thread => ({
+        ...thread,
+        postCount: thread._count.posts
+      })),
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    };
+  } catch (error) {
+    logger.error(`Error getting threads by forum ID: ${error.message}`);
+    throw error;
+  }
+};
+
+
+const createThread = async (forumId, threadData, userId) => {
+    try {
+        console.log('Service: Creating thread with data:', { forumId, threadData, userId });
+
+        
         const forum = await prisma.forum.findUnique({
             where: { id: Number(forumId) }
         });
@@ -52,16 +103,15 @@ const getThreadsByForumId = async (forumId, page = 1, limit = 10) => {
             throw error;
         }
 
-
-        const skip = (page - 1) * limit;
-
-
-        const [threads, totalCount] = await Promise.all([
-            prisma.thread.findMany({
-                where: { forumId: Number(forumId) },
-                skip,
-                take: limit,
-                orderBy: { updatedAt: 'desc' },
+        
+        const result = await prisma.$transaction(async (prisma) => {
+            
+            const thread = await prisma.thread.create({
+                data: {
+                    title: threadData.title,
+                    forumId: Number(forumId),
+                    userId: Number(userId)
+                },
                 include: {
                     user: {
                         select: {
@@ -69,76 +119,37 @@ const getThreadsByForumId = async (forumId, page = 1, limit = 10) => {
                             firstName: true,
                             lastName: true
                         }
-                    },
-                    _count: {
-                        select: { posts: true }
                     }
                 }
-            }),
-            prisma.thread.count({
-                where: { forumId: Number(forumId) }
-            })
-        ]);
+            });
 
+            
+            const post = await prisma.post.create({
+                data: {
+                    content: threadData.content,
+                    threadId: thread.id,
+                    userId: Number(userId)
+                },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true
+                        }
+                    }
+                }
+            });
 
-        const formattedThreads = threads.map(thread => ({
-            ...thread,
-            postCount: thread._count.posts,
-            _count: undefined
-        }));
-
-        return {
-            threads: formattedThreads,
-            pagination: {
-                page,
-                limit,
-                totalCount,
-                totalPages: Math.ceil(totalCount / limit)
-            }
-        };
-    } catch (error) {
-        logger.error(`Error getting threads by forum ID: ${error.message}`);
-        throw error;
-    }
-};
-
-
-const createThread = async (forumId, threadData, userId) => {
-    try {
-
-        const forum = await prisma.forum.findUnique({
-            where: { id: Number(forumId) }
+            return {
+                ...thread,
+                initialPost: post,
+                postCount: 1 
+            };
         });
 
-        if (!forum) {
-            const error = new Error('Forum not found');
-            error.status = HTTP_STATUS.NOT_FOUND;
-            throw error;
-        }
-
-
-        const thread = await prisma.thread.create({
-            data: {
-                title: threadData.title,
-                forumId: Number(forumId),
-                userId: Number(userId)
-            }
-        });
-
-
-        const post = await prisma.post.create({
-            data: {
-                content: threadData.content,
-                threadId: thread.id,
-                userId: Number(userId)
-            }
-        });
-
-
-        return {
-            ...thread,
-            initialPost: post
-        };
+        console.log('Thread created successfully:', result);
+        return result;
     } catch (error) {
         logger.error(`Error creating thread: ${error.message}`);
         throw error;
@@ -147,10 +158,9 @@ const createThread = async (forumId, threadData, userId) => {
 
 const getThreadById = async (threadId, page = 1, limit = 20) => {
     try {
-
         const skip = (page - 1) * limit;
 
-
+        
         const thread = await prisma.thread.findUnique({
             where: { id: Number(threadId) },
             include: {
@@ -164,13 +174,7 @@ const getThreadById = async (threadId, page = 1, limit = 20) => {
                 forum: {
                     select: {
                         id: true,
-                        courseId: true,
-                        course: {
-                            select: {
-                                id: true,
-                                title: true
-                            }
-                        }
+                        courseId: true
                     }
                 }
             }
@@ -182,10 +186,10 @@ const getThreadById = async (threadId, page = 1, limit = 20) => {
             throw error;
         }
 
-
+        
         const [posts, totalCount] = await Promise.all([
             prisma.post.findMany({
-                where: { threadId: Number(threadId), parentId: null },
+                where: { threadId: Number(threadId) },
                 skip,
                 take: limit,
                 orderBy: { createdAt: 'asc' },
@@ -196,26 +200,13 @@ const getThreadById = async (threadId, page = 1, limit = 20) => {
                             firstName: true,
                             lastName: true
                         }
-                    },
-                    replies: {
-                        include: {
-                            user: {
-                                select: {
-                                    id: true,
-                                    firstName: true,
-                                    lastName: true
-                                }
-                            }
-                        },
-                        orderBy: { createdAt: 'asc' }
                     }
                 }
             }),
             prisma.post.count({
-                where: { threadId: Number(threadId), parentId: null }
+                where: { threadId: Number(threadId) }
             })
         ]);
-
 
         return {
             thread,
@@ -232,6 +223,7 @@ const getThreadById = async (threadId, page = 1, limit = 20) => {
         throw error;
     }
 };
+
 
 
 const updateThread = async (threadId, threadData, userId, userRole) => {
@@ -324,38 +316,33 @@ const deleteThread = async (threadId, userId, userRole) => {
     }
 };
 
+
 const createPost = async (threadId, postData, userId) => {
     try {
+        console.log('Service: Creating post with data:', { threadId, postData, userId });
+
         
         const thread = await prisma.thread.findUnique({
-            where: { id: Number(threadId) }
+            where: { id: Number(threadId) },
+            include: {
+                forum: {
+                    include: {
+                        course: {
+                            select: { instructorId: true }
+                        }
+                    }
+                }
+            }
         });
 
         if (!thread) {
+            console.log('Thread not found:', threadId);
             const error = new Error('Thread not found');
             error.status = HTTP_STATUS.NOT_FOUND;
             throw error;
         }
 
-        
-        if (postData.parentId) {
-            const parentPost = await prisma.post.findUnique({
-                where: { id: Number(postData.parentId) },
-                select: { threadId: true }
-            });
-
-            if (!parentPost) {
-                const error = new Error('Parent post not found');
-                error.status = HTTP_STATUS.NOT_FOUND;
-                throw error;
-            }
-
-            if (parentPost.threadId !== Number(threadId)) {
-                const error = new Error('Parent post does not belong to this thread');
-                error.status = HTTP_STATUS.BAD_REQUEST;
-                throw error;
-            }
-        }
+        console.log('Thread found, creating post...');
 
         
         const post = await prisma.post.create({
@@ -376,6 +363,8 @@ const createPost = async (threadId, postData, userId) => {
             }
         });
 
+        console.log('Post created successfully:', post);
+
         
         await prisma.thread.update({
             where: { id: Number(threadId) },
@@ -384,10 +373,12 @@ const createPost = async (threadId, postData, userId) => {
 
         return post;
     } catch (error) {
+        console.error('Error in createPost service:', error);
         logger.error(`Error creating post: ${error.message}`);
         throw error;
     }
 };
+
 
 
 const updatePost = async (postId, postData, userId, userRole) => {
@@ -430,7 +421,10 @@ const updatePost = async (postId, postData, userId, userRole) => {
         
         return await prisma.post.update({
             where: { id: Number(postId) },
-            data: { content: postData.content },
+            data: { 
+                content: postData.content,
+                updatedAt: new Date()
+            },
             include: {
                 user: {
                     select: {
@@ -446,7 +440,6 @@ const updatePost = async (postId, postData, userId, userRole) => {
         throw error;
     }
 };
-
 
 const deletePost = async (postId, userId, userRole) => {
     try {
@@ -486,18 +479,41 @@ const deletePost = async (postId, userId, userRole) => {
         }
 
         
-        await prisma.post.delete({
-            where: { id: Number(postId) }
+        const firstPost = await prisma.post.findFirst({
+            where: { threadId: post.threadId },
+            orderBy: { createdAt: 'asc' }
         });
 
-        return { success: true };
+        
+        if (firstPost && firstPost.id === post.id) {
+            console.log('Deleting entire thread as this is the first post');
+            
+            
+            await prisma.thread.delete({
+                where: { id: post.threadId }
+            });
+
+            return { 
+                success: true, 
+                threadDeleted: true,
+                threadId: post.threadId 
+            };
+        } else {
+            
+            await prisma.post.delete({
+                where: { id: Number(postId) }
+            });
+
+            return { 
+                success: true, 
+                threadDeleted: false 
+            };
+        }
     } catch (error) {
         logger.error(`Error deleting post: ${error.message}`);
         throw error;
     }
 };
-
-
 
 module.exports = {
     getForumByCourseId,
