@@ -231,10 +231,9 @@ const handleSaveTextLesson = async (lessonData) => {
         shuffleQuestions: quizData.shuffleQuestions || false,
         showCorrectAnswers: quizData.showCorrectAnswers || false,
         isPublished: quizData.isPublished || false,
-        questions: quizData.questions || []
+        questions: quizData.questions || [] 
       };
-      
-      
+            
       const response = await api.post('/quizzes', newQuizData);
       
       

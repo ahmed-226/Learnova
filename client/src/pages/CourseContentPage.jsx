@@ -10,7 +10,7 @@ import AssignmentContent from '../components/CourseContents/AssignmentContent';
 import { useAuth } from '../contexts/AuthContext';
 
 const CourseContentPage = () => {
-  const params=useParams();
+  const params = useParams();
   const navigate = useNavigate();
   const { api, user } = useAuth();
 
@@ -34,207 +34,137 @@ const CourseContentPage = () => {
     }
   };
 
-  // Fetch course content data
-// Update the fetchCourseContent function
-
-useEffect(() => {
-  const fetchCourseContent = async () => {
-    try {
-      setLoading(true);
-      
-      if (!user) {
-        navigate('/login', { state: { from: `/courses/${courseId}/content` } });
-        return;
-      }
-
-      console.log("Fetching course content for course ID:", courseId);
-      const response = await api.get(`/courses/${courseId}/content`);
-      console.log("API Response:", response.data);
-      
-      // Check if the response data has the expected structure
-      if (response.data && Array.isArray(response.data.modules)) {
-        setCourse(response.data);
-      } else {
-        console.error("Invalid course data format:", response.data);
-        setError('Invalid course data format received from the server');
-      }
-      
-    } catch (error) {
-      console.error('Error fetching course content:', error);
-      if (error.response?.status === 403) {
-        setError('You must be enrolled in this course to access content');
-        setTimeout(() => navigate(`/courses/${courseId}`), 3000);
-      } else {
-        setError(`Failed to load course content: ${error.message || 'Unknown error'}`);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  fetchCourseContent();
-}, [courseId, api, user, navigate]);
-
-// Update the useEffect block that handles content initialization
-
-useEffect(() => {
-  if (!course) return;
-
-  // Collect all content into a flat array with additional module info
-  const allContent = [];
   
-  course.modules.forEach((module) => {
-    // Make sure module.content exists and is an array
-    if (module.content && Array.isArray(module.content)) {
-      const moduleItems = module.content.map(item => ({
-        ...item, 
-        moduleId: module.id, 
-        moduleTitle: module.title
-      }));
-      allContent.push(...moduleItems);
-      
-      // Only search for specific content if contentId and contentType are provided
-      if (contentId && contentType) {
-        const contentInModule = moduleItems.find(item => {
-          if (contentType === 'lesson') {
-            return item.type === 'lesson' && item.id === parseInt(contentId);
-          }
-          return item.type === contentType && item.id === parseInt(contentId);
-        });
+  useEffect(() => {
+    const fetchCourseData = async () => {
+      if (!courseId || !api) return;
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        console.log('Fetching course content for course:', courseId);
+        const response = await api.get(`/courses/${courseId}/content`);
+        console.log('Course content response:', response.data);
         
-        if (contentInModule) {
-          setCurrentContent(contentInModule);
-          setActiveModuleId(module.id);
+        setCourse(response.data);
+      } catch (error) {
+        console.error('Error fetching course content:', error);
+        if (error.response?.status === 403) {
+          setError('You must be enrolled in this course to access content');
+        } else if (error.response?.status === 404) {
+          setError('Course not found');
+        } else {
+          setError('Failed to load course content. Please try again.');
         }
+      } finally {
+        setLoading(false);
       }
-    } 
-    // Handle case where module content might be organized differently
-    else if (module.lessons || module.quizzes || module.assignments) {
-      // Alternative structure - collect from individual arrays
-      const moduleItems = [];
-      
-      if (module.lessons) {
-        moduleItems.push(...module.lessons.map(item => ({
-          ...item,
-          type: 'lesson',
-          moduleId: module.id,
-          moduleTitle: module.title
-        })));
-      }
-      
-      if (module.quizzes) {
-        moduleItems.push(...module.quizzes.map(item => ({
-          ...item,
-          type: 'quiz',
-          moduleId: module.id,
-          moduleTitle: module.title
-        })));
-      }
-      
-      if (module.assignments) {
-        moduleItems.push(...module.assignments.map(item => ({
-          ...item,
-          type: 'assignment',
-          moduleId: module.id,
-          moduleTitle: module.title
-        })));
-      }
-      
-      allContent.push(...moduleItems);
-    }
-  });
+    };
+
+    fetchCourseData();
+  }, [courseId, api]);
+
   
-  // If we have contentId and contentType, find the current, next, and prev content
-  if (contentId && contentType && allContent.length > 0) {
-    const currentIndex = allContent.findIndex(item => {
-      if (contentType === 'lesson') {
-        return item.type === 'lesson' && item.id === parseInt(contentId);
+  useEffect(() => {
+    if (!course) return;
+
+    
+    const allContent = [];
+    
+    course.modules.forEach((module) => {
+      
+      if (module.content && Array.isArray(module.content)) {
+        const moduleItems = module.content.map(item => ({
+          ...item, 
+          moduleId: module.id, 
+          moduleTitle: module.title
+        }));
+        allContent.push(...moduleItems);
+      } 
+      
+      else {
+        const moduleItems = [];
+        
+        if (module.lessons) {
+          moduleItems.push(...module.lessons.map(item => ({
+            ...item,
+            type: 'lesson',
+            moduleId: module.id,
+            moduleTitle: module.title
+          })));
+        }
+        
+        if (module.quizzes) {
+          moduleItems.push(...module.quizzes.map(item => ({
+            ...item,
+            type: 'quiz',
+            moduleId: module.id,
+            moduleTitle: module.title
+          })));
+        }
+        
+        if (module.assignments) {
+          moduleItems.push(...module.assignments.map(item => ({
+            ...item,
+            type: 'assignment',
+            moduleId: module.id,
+            moduleTitle: module.title
+          })));
+        }
+        
+        allContent.push(...moduleItems);
+        
+        
+        module.content = moduleItems.sort((a, b) => (a.order || 0) - (b.order || 0));
       }
-      return item.type === contentType && item.id === parseInt(contentId);
     });
+
+    console.log('All content collected:', allContent);
+
     
-    if (currentIndex !== -1) {
-      setCurrentContent(allContent[currentIndex]);
-      if (currentIndex > 0) {
-        setPrevContent(allContent[currentIndex - 1]);
-      }
+    if (contentId && contentType && allContent.length > 0) {
+      const currentIndex = allContent.findIndex(item => {
+        return item.type === contentType && item.id === parseInt(contentId);
+      });
       
-      if (currentIndex < allContent.length - 1) {
-        setNextContent(allContent[currentIndex + 1]);
+      if (currentIndex !== -1) {
+        const content = allContent[currentIndex];
+        setCurrentContent(content);
+        setActiveModuleId(content.moduleId);
+        
+        
+        if (currentIndex > 0) {
+          setPrevContent(allContent[currentIndex - 1]);
+        } else {
+          setPrevContent(null);
+        }
+        
+        if (currentIndex < allContent.length - 1) {
+          setNextContent(allContent[currentIndex + 1]);
+        } else {
+          setNextContent(null);
+        }
+      } else {
+        console.log('Content not found:', contentType, contentId);
+        setError('Content not found');
       }
     }
-  }
-  
-  // If no specific content requested, redirect to first available content
-  if (!contentId && !contentType && allContent.length > 0) {
-    console.log("No specific content requested, redirecting to first content");
-    const firstContent = allContent[0];
-    const firstContentType = firstContent.type === 'lesson' ? 'lesson' : firstContent.type;
     
-    // Add a slight delay to ensure state updates have time to process
-    setTimeout(() => {
-      navigate(`/courses/${courseId}/${firstContentType}/${firstContent.id}`, { replace: true });
-    }, 100);
-  } else if (!contentId && !contentType && allContent.length === 0) {
-    // No content available
-    setError('This course does not have any content yet.');
-  }
-}, [courseId, contentId, contentType, course, navigate]);
-
-
-// Add this after receiving the API response
-useEffect(() => {
-  if (!course) return;
-
-  // Preprocess the course data to ensure proper format
-  const processedCourse = {
-    ...course,
-    modules: course.modules.map(module => {
-      // If module already has content property, use it
-      if (module.content) return module;
+    else if ((!contentId || !contentType) && allContent.length > 0) {
+      console.log("Redirecting to first content");
+      const firstContent = allContent[0];
+      const firstContentType = firstContent.type;
       
-      // Otherwise, build content array from individual collections
-      const content = [];
-      
-      // Add lessons
-      if (module.lessons) {
-        content.push(...module.lessons.map(lesson => ({
-          ...lesson,
-          type: 'lesson',
-          moduleId: module.id,
-          moduleTitle: module.title
-        })));
-      }
-      
-      // Add quizzes
-      if (module.quizzes) {
-        content.push(...module.quizzes.map(quiz => ({
-          ...quiz,
-          type: 'quiz',
-          moduleId: module.id,
-          moduleTitle: module.title
-        })));
-      }
-      
-      // Add assignments
-      if (module.assignments) {
-        content.push(...module.assignments.map(assignment => ({
-          ...assignment,
-          type: 'assignment',
-          moduleId: module.id,
-          moduleTitle: module.title
-        })));
-      }
-      
-      return {
-        ...module,
-        content: content.sort((a, b) => a.order - b.order)
-      };
-    })
-  };
-  
-  setCourse(processedCourse);
-}, [course]);
+      setTimeout(() => {
+        navigate(`/courses/${courseId}/${firstContentType}/${firstContent.id}`, { replace: true });
+      }, 100);
+    } 
+    
+    else if (allContent.length === 0) {
+      setError('This course does not have any content yet.');
+    }
+  }, [courseId, contentId, contentType, course, navigate]);
 
   const calculateProgress = () => {
     if (!course) return 0;
@@ -243,10 +173,12 @@ useEffect(() => {
     let totalItems = 0;
     
     course.modules.forEach(module => {
-      module.content.forEach(item => {
-        totalItems++;
-        if (item.isCompleted) completedItems++;
-      });
+      if (module.content) {
+        module.content.forEach(item => {
+          totalItems++;
+          if (item.isCompleted) completedItems++;
+        });
+      }
     });
     
     return totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
@@ -259,7 +191,7 @@ useEffect(() => {
       if (currentContent.type === 'lesson') {
         await api.post(`/lessons/${currentContent.id}/complete`);
         
-        // Update local state
+        
         const updatedCourse = {...course};
         updatedCourse.modules = course.modules.map(module => {
           if (module.id === currentContent.moduleId) {
@@ -287,7 +219,7 @@ useEffect(() => {
   
   const goToNextContent = () => {
     if (nextContent) {
-      const nextContentType = nextContent.type === 'lesson' ? 'lesson' : nextContent.type;
+      const nextContentType = nextContent.type;
       navigate(`/courses/${courseId}/${nextContentType}/${nextContent.id}`);
       window.scrollTo(0, 0);
     }
@@ -330,78 +262,76 @@ useEffect(() => {
     }
   };
 
-// Update the renderContent function
-
-const renderContent = () => {
-  if (!currentContent) {
-    return (
-      <div className="p-8 text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600 mx-auto mb-4"></div>
-        <p>Loading content...</p>
-      </div>
-    );
-  }
-  
-  try {
-    if (currentContent.type === 'lesson') {
-      switch (currentContent.subType) {
-        case 'video':
-          return (
-            <VideoLessonContent 
-              content={currentContent} 
-              onComplete={markAsCompleted} 
-              onNext={goToNextContent}
-              isCompleted={currentContent.isCompleted}
-            />
-          );
-        case 'text':
-        default:
-          return (
-            <TextLessonContent 
-              content={currentContent} 
-              onComplete={markAsCompleted} 
-              onNext={goToNextContent}
-              isCompleted={currentContent.isCompleted}
-            />
-          );
-      }
+  const renderContent = () => {
+    if (!currentContent) {
+      return (
+        <div className="p-8 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p>Loading content...</p>
+        </div>
+      );
     }
     
-    switch (currentContent.type) {
-      case 'quiz':
-        return (
-          <QuizContent 
-            content={currentContent} 
-            onComplete={markAsCompleted} 
-            onNext={goToNextContent}
-            isCompleted={currentContent.isCompleted}
-          />
-        );
-      case 'assignment':
-        return (
-          <AssignmentContent 
-            content={currentContent} 
-            onComplete={markAsCompleted} 
-            onNext={goToNextContent}
-            isCompleted={currentContent.isCompleted}
-          />
-        );
-      default:
-        return (
-          <div className="p-8 text-center border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-            <p>Unknown content type: {currentContent.type}</p>
-          </div>
-        );
+    try {
+      if (currentContent.type === 'lesson') {
+        switch (currentContent.subType) {
+          case 'video':
+            return (
+              <VideoLessonContent 
+                content={currentContent} 
+                onComplete={markAsCompleted} 
+                onNext={goToNextContent}
+                isCompleted={currentContent.isCompleted}
+              />
+            );
+          case 'text':
+          default:
+            return (
+              <TextLessonContent 
+                content={currentContent} 
+                onComplete={markAsCompleted} 
+                onNext={goToNextContent}
+                isCompleted={currentContent.isCompleted}
+              />
+            );
+        }
+      }
+      
+      switch (currentContent.type) {
+        case 'quiz':
+          return (
+            <QuizContent 
+              content={currentContent} 
+              onComplete={markAsCompleted} 
+              onNext={goToNextContent}
+              isCompleted={currentContent.isCompleted}
+            />
+          );
+        case 'assignment':
+          return (
+            <AssignmentContent 
+              content={currentContent} 
+              onComplete={markAsCompleted} 
+              onNext={goToNextContent}
+              isCompleted={currentContent.isCompleted}
+            />
+          );
+        default:
+          return (
+            <div className="p-8 text-center border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+              <p>Unknown content type: {currentContent.type}</p>
+            </div>
+          );
+      }
+    } catch (err) {
+      console.error("Error rendering content:", err);
+      return (
+        <div className="p-8 text-center border border-red-200 bg-red-50 dark:bg-red-900/20 rounded-lg">
+          <p>Error displaying content. Please try again.</p>
+        </div>
+      );
     }
-  } catch (err) {
-    console.error("Error rendering content:", err);
-    return (
-      <div className="p-8 text-center border border-red-200 bg-red-50 dark:bg-red-900/20 rounded-lg">
-        <p>Error displaying content. Please try again.</p>
-      </div>
-    );
-  }
-};
+  };
 
   if (loading) {
     return (
@@ -480,7 +410,7 @@ const renderContent = () => {
           <div className="p-2">
             {/* Module List */}
             <div className="space-y-2">
-              {course.modules.map((module) => (
+              {course.modules?.map((module) => (
                 <div key={module.id} className="rounded-lg overflow-hidden border border-gray-100 dark:border-gray-800">
                   <button 
                     className={`w-full px-4 py-3 flex justify-between items-center text-left transition-colors ${
@@ -517,13 +447,13 @@ const renderContent = () => {
                   </button>
                   
                   {/* Module Content List */}
-                  {activeModuleId === module.id && (
+                  {activeModuleId === module.id && module.content && (
                     <div className="bg-gray-50 dark:bg-gray-800/30">
                       <ul className="py-2">
                         {module.content.map((item) => (
                           <li key={`${item.type}-${item.id}`}>
                             <Link 
-                              to={`/courses/${courseId}/${item.type === 'lesson' ? 'lesson' : item.type}/${item.id}`}
+                              to={`/courses/${courseId}/${item.type}/${item.id}`}
                               className={`flex items-center px-4 py-2 text-sm ${
                                 currentContent && currentContent.id === item.id && currentContent.type === item.type
                                   ? 'bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
@@ -565,7 +495,7 @@ const renderContent = () => {
           <div className="bg-white dark:bg-dark-card border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex justify-between items-center">
             {prevContent ? (
               <Link 
-                to={`/courses/${courseId}/${prevContent.type === 'lesson' ? 'lesson' : prevContent.type}/${prevContent.id}`}
+                to={`/courses/${courseId}/${prevContent.type}/${prevContent.id}`}
                 className="flex items-center text-sm text-primary-600 dark:text-primary-400 hover:underline"
               >
                 <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -585,7 +515,7 @@ const renderContent = () => {
             
             {nextContent ? (
               <Link 
-                to={`/courses/${courseId}/${nextContent.type === 'lesson' ? 'lesson' : nextContent.type}/${nextContent.id}`}
+                to={`/courses/${courseId}/${nextContent.type}/${nextContent.id}`}
                 className="flex items-center text-sm text-primary-600 dark:text-primary-400 hover:underline"
               >
                 Next
