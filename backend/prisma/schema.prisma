@@ -29,6 +29,7 @@ model User {
   progress  Progress[]
   answers   Answer[]
   submissions Submission[]
+  quizSubmissions QuizSubmission[]  
   threads   Thread[]
   posts     Post[]
   notifications Notification[]
@@ -79,23 +80,46 @@ model Lesson{
   order       Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  duration     Int?      // Duration in seconds
+  duration     Int?      
   // Relations
   module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   @@index([moduleId])
 }
-model Quiz{
+
+model QuizSubmission {
   id          Int      @id @default(autoincrement())
-  title       String
-  moduleId    Int
+  quizId      Int
+  userId      Int
+  score       Int
+  isCompleted Boolean  @default(false)
+  submittedAt DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  order     Int      @default(0)
-  // Relations
-  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  questions   Question[]
-  @@index([moduleId])
 
+  // Relations
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([quizId, userId])
+  @@index([quizId, userId])
+}
+
+model Quiz {
+  id                Int      @id @default(autoincrement())
+  title             String
+  description       String?
+  timeLimit         Int?    
+  passingScore      Int      @default(70)
+  shuffleQuestions  Boolean  @default(false)
+  showCorrectAnswers Boolean @default(true)
+  isPublished       Boolean  @default(false)
+  moduleId          Int
+  module            Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  questions         Question[]
+  submissions       QuizSubmission[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  order             Int?     @default(0)
 }
 
 enum QuestionType {
@@ -105,18 +129,17 @@ enum QuestionType {
 }
 
 model Question {
-  id          Int      @id @default(autoincrement())
-  quizId      Int
-  question    String
-  type        QuestionType
-  options     Json?
+  id            Int      @id @default(autoincrement())
+  question      String
+  type          String   
+  options       Json?    
   correctAnswer String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  // Relations
-  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  answers     Answer[]
-  @@index([quizId])
+  order         Int?     @default(0)
+  quizId        Int
+  quiz          Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers       Answer[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 model Answer{
   id          Int      @id @default(autoincrement())
