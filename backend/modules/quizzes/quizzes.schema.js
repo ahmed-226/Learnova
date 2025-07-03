@@ -3,7 +3,35 @@ const { QUESTION_TYPES } = require('../../utils/constants');
 
 const createQuiz = Joi.object({
   title: Joi.string().required().max(100),
-  moduleId: Joi.number().integer().required()
+  description: Joi.string().allow('').optional(),
+  moduleId: Joi.number().integer().required(),
+  timeLimit: Joi.number().integer().allow(null).optional(),
+  passingScore: Joi.number().integer().min(0).max(100).optional(),
+  shuffleQuestions: Joi.boolean().optional(),
+  showCorrectAnswers: Joi.boolean().optional(),
+  isPublished: Joi.boolean().optional(),
+  questions: Joi.array().items(
+    Joi.object({
+      text: Joi.string().required(),
+      type: Joi.string().valid('multiple_choice', 'true_false', 'short_answer').required(),
+      options: Joi.when('type', {
+        is: 'multiple_choice',
+        then: Joi.array().items(
+          Joi.object({
+            text: Joi.string().required(),
+            isCorrect: Joi.boolean().required()
+          })
+        ).min(2).required(),
+        otherwise: Joi.optional()
+      }),
+      answer: Joi.when('type', {
+        is: Joi.string().valid('true_false', 'short_answer'),
+        then: Joi.string().required(),
+        otherwise: Joi.optional()
+      }),
+      points: Joi.number().integer().min(1).optional()
+    })
+  ).optional()
 });
 
 const updateQuiz = Joi.object({
@@ -28,17 +56,17 @@ const updateQuestion = Joi.object({
   correctAnswer: Joi.string()
 }).min(1);
 
+const quizIdParam = Joi.object({
+  quizId: Joi.number().integer().required()
+});
+
 const submitQuizAnswers = Joi.object({
   answers: Joi.array().items(
     Joi.object({
       questionId: Joi.number().integer().required(),
       answer: Joi.string().required()
     })
-  ).required().min(1)
-});
-
-const quizIdParam = Joi.object({
-  quizId: Joi.number().integer().required()
+  ).required()
 });
 
 const questionIdParam = Joi.object({

@@ -11,8 +11,8 @@ router.use(auth);
 
 // Routes for all authenticated users
 router.get('/module/:moduleId', controller.getQuizzesByModule);
-router.get('/:quizId', validate({ params: schema.quizIdParam }), controller.getQuizById);
-router.get('/:quizId/results', validate({ params: schema.quizIdParam }), controller.getUserQuizResults);
+router.get('/:quizId',auth, validate({ params: schema.quizIdParam }), controller.getQuizById);
+router.get('/:quizId/results', auth,validate({ params: schema.quizIdParam }), controller.getUserQuizResults);
 
 // Student routes
 router.post('/:quizId/submit',
