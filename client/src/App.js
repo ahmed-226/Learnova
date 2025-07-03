@@ -44,12 +44,7 @@ function App() {
               </ProtectedRoute>
             } />
 
-            <Route path="/courses/:courseId/content" element={
-              <ProtectedRoute>
-                <CourseContentPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/courses/:courseId/:contentType/:contentId" element={
+            <Route path="/courses/:courseId/:contentType?/:contentId?" element={
               <ProtectedRoute>
                 <CourseContentPage />
               </ProtectedRoute>
