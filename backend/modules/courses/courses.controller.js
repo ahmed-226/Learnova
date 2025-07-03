@@ -1,6 +1,7 @@
 const courseService = require('./courses.service');
 const logger = require('../../utils/logger');
 const { HTTP_STATUS } = require('../../utils/constants');
+const prisma = require('../../config/database');
 
 const createCourse = async (req, res, next) => {
   try {
@@ -19,18 +20,81 @@ const createCourse = async (req, res, next) => {
   }
 };
 
-const getCourseContent = async (req, res, next) => {
+
+const getCourseContent = async (req, res) => {
   try {
-    const courseId = req.params.courseId;
+    const { courseId } = req.params;
     const userId = req.user.id;
+
+    console.log('Getting course content for courseId:', courseId, 'userId:', userId);
+
     
-    console.log(`Getting content for course ${courseId} for user ${userId}`);
+    const enrollment = await prisma.progress.findFirst({
+      where: {
+        userId: userId,
+        courseId: parseInt(courseId)
+      }
+    });
+
+    console.log('Enrollment check result:', enrollment);
+
+    if (!enrollment) {
+      return res.status(403).json({
+        error: 'You must be enrolled in this course to access content'
+      });
+    }
+
     
-    const courseContent = await courseService.getCourseContent(courseId, userId);
-    res.status(HTTP_STATUS.OK).json(courseContent);
+    const course = await prisma.course.findUnique({
+      where: { id: parseInt(courseId) },
+      include: {
+        modules: {
+          include: {
+            lessons: true,
+            quizzes: true,
+            assignments: true
+          },
+          orderBy: {
+            order: 'asc'
+          }
+        },
+        instructor: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        }
+      }
+    });
+
+    if (!course) {
+      return res.status(404).json({
+        error: 'Course not found'
+      });
+    }
+
+    
+    const transformedCourse = {
+      ...course,
+      modules: course.modules.map(module => ({
+        ...module,
+        content: [
+          ...module.lessons.map(lesson => ({ ...lesson, type: 'lesson' })),
+          ...module.quizzes.map(quiz => ({ ...quiz, type: 'quiz' })),
+          ...module.assignments.map(assignment => ({ ...assignment, type: 'assignment' }))
+        ].sort((a, b) => a.order - b.order)
+      }))
+    };
+
+    return res.json(transformedCourse);
+
   } catch (error) {
-    logger.error(`Error in getCourseContent: ${error.message}`);
-    next(error);
+    console.error('Error in getCourseContent:', error);
+    return res.status(500).json({
+      error: 'Internal server error',
+      details: error.message
+    });
   }
 };
 
@@ -244,13 +308,13 @@ const checkEnrollment = async (req, res, next) => {
 };
 
 module.exports = {
-  createCourse,
   getCourseById,
-  getCourseContent,
+  createCourse,
   updateCourse,
   deleteCourse,
-  listCourses,
   enrollInCourse,
+  getCourseContent, 
+  listCourses,
   unenrollFromCourse,
   getEnrolledStudents,
   addModule,
@@ -259,5 +323,5 @@ module.exports = {
   getModulesByCourse,
   reorderModules,
   reorderModuleContent,
-  checkEnrollment  
+  checkEnrollment
 };

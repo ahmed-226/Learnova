@@ -10,16 +10,12 @@ const { courseContentUpload } = require('../../middleware/upload');
 // Public routes 
 router.get('/', validate(schema.listCourses), controller.listCourses);
 router.get('/:courseId', controller.getCourseById);
-router.get('/:courseId/content', 
-  auth, 
-  validate({ params: schema.courseIdParam }), 
-  controller.getCourseContent
-);
+router.get('/:courseId/content', auth, controller.getCourseContent);
 
 // Protected routes 
 router.use(auth);
 
-// Student enrollment routes (these should come before parameterized routes)
+// Student enrollment routes
 router.post('/:courseId/enroll', 
   validate({ params: schema.enrollmentParam }), 
   controller.enrollInCourse
@@ -31,7 +27,7 @@ router.delete('/:courseId/enroll',
 router.get('/:courseId/enrollment-status', controller.checkEnrollment);
 
 
-// Instructor routes (requires INSTRUCTOR or ADMIN role)
+// Instructor routes 
 router.post('/',
   auth,
   checkRole('INSTRUCTOR'),
