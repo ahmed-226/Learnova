@@ -1,34 +1,69 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 
 const AssignmentContent = ({ content, onComplete, onNext, isCompleted }) => {
+  const { api } = useAuth();
+  const [assignmentData, setAssignmentData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [submission, setSubmission] = useState('');
   const [files, setFiles] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(isCompleted);
-  
-  
-  const assignmentData = {
-    title: content.title,
-    description: "In this assignment, you will apply the concepts you've learned by building a real-world project.",
-    instructions: `
-      <h3>Requirements</h3>
-      <ol>
-        <li>Create a responsive HTML page based on the provided design</li>
-        <li>Implement proper semantic HTML elements</li>
-        <li>Style the page using CSS with a mobile-first approach</li>
-        <li>Add basic form validation using JavaScript</li>
-      </ol>
+
+  useEffect(() => {
+    const fetchAssignmentData = async () => {
+      if (!content?.id || !api) {
+        console.log('Missing content ID or API:', { contentId: content?.id, hasApi: !!api });
+        return;
+      }
+
       
-      <h3>Submission Guidelines</h3>
-      <p>Submit your completed assignment by uploading the following:</p>
-      <ul>
-        <li>HTML, CSS, and JavaScript files</li>
-        <li>A brief explanation of your implementation</li>
-        <li>Any additional resources or references used</li>
-      </ul>
-    `,
-    deadline: content.deadline || "No deadline"
-  };
+      if (content.type !== 'assignment') {
+        console.error('Content type is not assignment:', content.type);
+        setError(`This content is not an assignment. Content type: ${content.type}`);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('Fetching assignment data for assignment:', content.id);
+        console.log('Content details:', content);
+        
+        const response = await api.get(`/assignments/${content.id}`);
+        console.log('Assignment API Response:', response.data);
+        
+        if (!response.data) {
+          setError('Empty response from server');
+          return;
+        }
+        
+        setAssignmentData(response.data);
+      } catch (error) {
+        console.error('Error fetching assignment data:', error);
+        console.error('Error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
+        
+        if (error.response?.status === 403) {
+          setError('You do not have permission to access this assignment');
+        } else if (error.response?.status === 404) {
+          setError('Assignment not found');
+        } else {
+          setError(`Failed to load assignment: ${error.response?.data?.error || error.message}`);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAssignmentData();
+  }, [content?.id, api]);
   
   const handleFileChange = (e) => {
     if (e.target.files.length > 0) {
@@ -43,7 +78,7 @@ const AssignmentContent = ({ content, onComplete, onNext, isCompleted }) => {
     setFiles(newFiles);
   };
   
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (submission.trim() === '' && files.length === 0) {
@@ -53,32 +88,98 @@ const AssignmentContent = ({ content, onComplete, onNext, isCompleted }) => {
     
     setIsSubmitting(true);
     
-    
-    setTimeout(() => {
+    try {
+      
+      const formData = new FormData();
+      formData.append('content', submission);
+      files.forEach((file, index) => {
+        formData.append(`files`, file);
+      });
+      
+      
+      await api.post(`/assignments/${content.id}/submit`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
       setSubmitted(true);
       onComplete();
+    } catch (error) {
+      console.error('Error submitting assignment:', error);
+      alert('Failed to submit assignment. Please try again.');
+    } finally {
       setIsSubmitting(false);
-    }, 1500);
+    }
   };
-  
+
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center text-red-500 p-8">
+          <p>{error}</p>
+          <div className="mt-4 text-sm text-gray-600">
+            <p>Debug info: Content ID: {content?.id}</p>
+            <p>Content Type: {content?.type}</p>
+            <p>Check console for API response details</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!assignmentData) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center text-gray-500 p-8">
+          <p>No assignment content available.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-2">{assignmentData.title}</h1>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">{assignmentData.description}</p>
+        <h1 className="text-2xl font-bold mb-2">{assignmentData.title || content.title}</h1>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">
+          {assignmentData.description || "Complete this assignment to demonstrate your understanding."}
+        </p>
         
         <div className="card p-6 mb-6">
           <div className="flex justify-between items-start mb-4">
             <h2 className="text-lg font-semibold">Assignment Instructions</h2>
             <div className="text-sm bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-md">
-              Deadline: {assignmentData.deadline}
+              {assignmentData.dueDate ? (
+                <>Deadline: {new Date(assignmentData.dueDate).toLocaleDateString()}</>
+              ) : (
+                'No deadline'
+              )}
             </div>
           </div>
           
           <div 
             className="prose prose-primary dark:prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ __html: assignmentData.instructions }}
+            dangerouslySetInnerHTML={{ 
+              __html: assignmentData.instructions || assignmentData.description || '<p>No instructions provided.</p>' 
+            }}
           />
+          
+          {assignmentData.totalPoints && (
+            <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+              <strong>Total Points:</strong> {assignmentData.totalPoints}
+            </div>
+          )}
         </div>
         
         {!submitted ? (
