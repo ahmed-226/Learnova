@@ -1,56 +1,126 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 
 const QuizContent = ({ content, onComplete, onNext, isCompleted }) => {
+  const { api } = useAuth();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [score, setScore] = useState(0);
-  
-  
-  const quizData = {
-    title: content.title,
-    description: "Test your knowledge of the concepts covered in this module.",
-    questions: [
-      {
-        id: 1,
-        question: "What does HTML stand for?",
-        type: "MULTIPLE_CHOICE",
-        options: [
-          "Hyper Text Markup Language",
-          "Hyper Transfer Markup Language",
-          "High Text Machine Language",
-          "Hyper Technical Markup Logic"
-        ],
-        correctAnswer: "0" 
-      },
-      {
-        id: 2,
-        question: "Which CSS property is used to control the spacing between elements?",
-        type: "MULTIPLE_CHOICE",
-        options: [
-          "spacing",
-          "margin",
-          "padding",
-          "border"
-        ],
-        correctAnswer: "1"
-      },
-      {
-        id: 3,
-        question: "JavaScript is a statically-typed language.",
-        type: "TRUE_FALSE",
-        correctAnswer: "false"
-      },
-      {
-        id: 4,
-        question: "HTML5 introduced native support for video elements.",
-        type: "TRUE_FALSE",
-        correctAnswer: "true"
+  const [quizData, setQuizData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+useEffect(() => {
+  const fetchQuizData = async () => {
+    if (!content?.id || !api) {
+      console.log('Missing content ID or API:', { contentId: content?.id, hasApi: !!api });
+      return;
+    }
+
+    
+    if (content.type !== 'quiz') {
+      console.error('Content type is not quiz:', content.type);
+      setError(`This content is not a quiz. Content type: ${content.type}`);
+      setLoading(false);
+      return;
+    }
+
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('Fetching quiz data for quiz:', content.id);
+        console.log('Content details:', content);
+        
+        const response = await api.get(`/quizzes/${content.id}`);
+        console.log('Raw API Response:', response);
+        console.log('Response Data:', response.data);
+        console.log('Response Status:', response.status);
+        
+        if (!response.data) {
+          setError('Empty response from server');
+          return;
+        }
+        
+        
+        let processedQuizData = response.data;
+        
+        console.log('Processing quiz data:', processedQuizData);
+        
+        
+        if (!processedQuizData.questions) {
+          console.error('No questions property found in:', processedQuizData);
+          setError('Quiz has no questions');
+          return;
+        }
+        
+        if (!Array.isArray(processedQuizData.questions)) {
+          console.error('Questions is not an array:', processedQuizData.questions);
+          setError('Invalid questions format');
+          return;
+        }
+        
+        if (processedQuizData.questions.length === 0) {
+          console.warn('Questions array is empty');
+          setError('No quiz questions available');
+          return;
+        }
+        
+        console.log('Found questions:', processedQuizData.questions);
+        
+        
+        processedQuizData.questions = processedQuizData.questions.map((q, index) => {
+          console.log(`Processing question ${index}:`, q);
+          return {
+            id: q.id,
+            question: q.question || q.text || q.questionText || 'Question text not available',
+            type: q.type || 'MULTIPLE_CHOICE',
+            options: q.options || q.choices || [],
+            correctAnswer: q.correctAnswer || q.correct_answer || q.answer || '0'
+          };
+        });
+        
+        console.log('Final processed quiz data:', processedQuizData);
+        setQuizData(processedQuizData);
+      } catch (error) {
+        console.error('Error fetching quiz data:', error);
+        console.error('Error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
+        
+        if (error.response?.status === 403) {
+          setError('You do not have permission to access this quiz');
+        } else if (error.response?.status === 404) {
+          setError('Quiz not found');
+        } else {
+          setError(`Failed to load quiz: ${error.response?.data?.error || error.message}`);
+        }
+      } finally {
+        setLoading(false);
       }
-    ],
-    passingScore: 70
-  };
-  
+    };
+
+    fetchQuizData();
+  }, [content?.id, api]);
+if (content && content.type !== 'quiz') {
+  return (
+    <div className="max-w-3xl mx-auto">
+      <div className="text-center text-red-500 p-8">
+        <h2 className="text-xl font-bold mb-4">Content Type Mismatch</h2>
+        <p>This content is not a quiz. It's a {content.type}.</p>
+        <div className="mt-4 text-sm text-gray-600">
+          <p>Content ID: {content.id}</p>
+          <p>Content Type: {content.type}</p>
+          <p>Expected Type: quiz</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
   const handleOptionSelect = (questionIndex, answer) => {
     if (quizSubmitted) return;
     
@@ -59,20 +129,22 @@ const QuizContent = ({ content, onComplete, onNext, isCompleted }) => {
       [questionIndex]: answer
     });
   };
-  
+
   const handlePrevQuestion = () => {
     if (currentQuestion > 0) {
       setCurrentQuestion(currentQuestion - 1);
     }
   };
-  
+
   const handleNextQuestion = () => {
     if (currentQuestion < quizData.questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     }
   };
-  
+
   const calculateScore = () => {
+    if (!quizData || !quizData.questions) return 0;
+    
     let correctCount = 0;
     
     quizData.questions.forEach((question, index) => {
@@ -83,29 +155,41 @@ const QuizContent = ({ content, onComplete, onNext, isCompleted }) => {
     
     return Math.round((correctCount / quizData.questions.length) * 100);
   };
-  
-  const handleQuizSubmit = () => {
+
+  const handleQuizSubmit = async () => {
     const calculatedScore = calculateScore();
     setScore(calculatedScore);
     setQuizSubmitted(true);
     
-    if (calculatedScore >= quizData.passingScore) {
-      onComplete();
+    try {
+      const submissionData = {
+        answers: quizData.questions.map((question, index) => ({
+          questionId: question.id,
+          answer: answers[index] || ''
+        }))
+      };
+      
+      await api.post(`/quizzes/${content.id}/submit`, submissionData);
+      
+      if (calculatedScore >= (quizData.passingScore || 70)) {
+        onComplete();
+      }
+    } catch (error) {
+      console.error('Error submitting quiz:', error);
     }
   };
 
   
-  const isQuestionAnswered = (questionIndex) => {
-    return answers[questionIndex] !== undefined;
-  };
-  
-  
   const renderQuestionContent = (question, questionIndex) => {
+    if (!question) {
+      return <p className="text-red-500">Question data not available</p>;
+    }
+
     switch (question.type) {
       case 'MULTIPLE_CHOICE':
         return (
           <div className="space-y-3">
-            {question.options.map((option, optionIndex) => (
+            {(question.options || []).map((option, optionIndex) => (
               <div 
                 key={optionIndex}
                 className={`border rounded-md p-3 cursor-pointer transition-colors ${
@@ -165,19 +249,20 @@ const QuizContent = ({ content, onComplete, onNext, isCompleted }) => {
             ))}
           </div>
         );
-      
+
       default:
         return <p className="text-red-500">Unsupported question type: {question.type}</p>;
     }
   };
 
-  
   const renderReviewAnswer = (question, questionIndex) => {
+    if (!question) return null;
+
     switch (question.type) {
       case 'MULTIPLE_CHOICE':
         return (
           <div className="space-y-2">
-            {question.options.map((option, optionIndex) => (
+            {(question.options || []).map((option, optionIndex) => (
               <div 
                 key={optionIndex}
                 className={`p-2 rounded-md ${
@@ -232,21 +317,57 @@ const QuizContent = ({ content, onComplete, onNext, isCompleted }) => {
             ))}
           </div>
         );
-      
+
       default:
         return <p className="text-red-500">Unsupported question type: {question.type}</p>;
     }
   };
-  
+
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center text-red-500 p-8">
+          <p>{error}</p>
+          <div className="mt-4 text-sm text-gray-600">
+            <p>Debug info: Content ID: {content?.id}</p>
+            <p>Content Type: {content?.type}</p>
+            <p>Check console for API response details</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!quizData || !quizData.questions || quizData.questions.length === 0) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center text-gray-500 p-8">
+          <p>No quiz questions available.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const currentQuestionData = quizData.questions[currentQuestion];
+
   return (
     <div className="max-w-3xl mx-auto">
       {!quizSubmitted ? (
         <>
           <div className="mb-8">
-            <h1 className="text-2xl font-bold mb-2">{quizData.title}</h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">{quizData.description}</p>
+            <h1 className="text-2xl font-bold mb-2">{quizData.title || content.title}</h1>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">{quizData.description || "Test your knowledge of the concepts covered in this module."}</p>
             
-            {/* Progress Bar */}
             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-6">
               <div 
                 className="bg-primary-600 h-2.5 rounded-full" 
@@ -254,20 +375,19 @@ const QuizContent = ({ content, onComplete, onNext, isCompleted }) => {
               ></div>
             </div>
             
-            {/* Current Question */}
             <div className="card p-6">
               <h2 className="text-lg font-medium mb-4">
                 Question {currentQuestion + 1} of {quizData.questions.length}
               </h2>
               
               <div className="mb-4 flex items-center">
-                <p className="flex-grow">{quizData.questions[currentQuestion].question}</p>
+                <p className="flex-grow">{currentQuestionData.question}</p>
                 <span className="text-xs font-medium py-1 px-2 bg-gray-100 dark:bg-gray-800 rounded">
-                  {quizData.questions[currentQuestion].type === 'MULTIPLE_CHOICE' ? 'Multiple Choice' : 'True / False'}
+                  {currentQuestionData.type === 'MULTIPLE_CHOICE' ? 'Multiple Choice' : 'True / False'}
                 </span>
               </div>
               
-              {renderQuestionContent(quizData.questions[currentQuestion], currentQuestion)}
+              {renderQuestionContent(currentQuestionData, currentQuestion)}
             </div>
           </div>
           
@@ -301,7 +421,7 @@ const QuizContent = ({ content, onComplete, onNext, isCompleted }) => {
       ) : (
         <div className="text-center">
           <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center mb-4 ${
-            score >= quizData.passingScore 
+            score >= (quizData.passingScore || 70)
               ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' 
               : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
           }`}>
@@ -309,17 +429,16 @@ const QuizContent = ({ content, onComplete, onNext, isCompleted }) => {
           </div>
           
           <h1 className="text-2xl font-bold mb-2">
-            {score >= quizData.passingScore ? 'Congratulations!' : 'Not quite there yet'}
+            {score >= (quizData.passingScore || 70) ? 'Congratulations!' : 'Not quite there yet'}
           </h1>
           
           <p className="text-gray-600 dark:text-gray-400 mb-8">
-            {score >= quizData.passingScore 
+            {score >= (quizData.passingScore || 70)
               ? `You passed the quiz with a score of ${score}%` 
-              : `You scored ${score}%. You need ${quizData.passingScore}% to pass the quiz.`
+              : `You scored ${score}%. You need ${quizData.passingScore || 70}% to pass the quiz.`
             }
           </p>
           
-          {/* Review Answers */}
           <div className="card p-6 mb-8">
             <h2 className="text-lg font-medium mb-4 text-left">Review Your Answers</h2>
             
@@ -340,7 +459,7 @@ const QuizContent = ({ content, onComplete, onNext, isCompleted }) => {
           </div>
           
           <div className="flex justify-center space-x-4">
-            {score < quizData.passingScore && (
+            {score < (quizData.passingScore || 70) && (
               <button 
                 className="btn btn-outline"
                 onClick={() => {
