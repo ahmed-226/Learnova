@@ -1,43 +1,120 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 
 const TextLessonContent = ({ content, onComplete, onNext, isCompleted }) => {
-  const lessonContent = {
-    title: content.title,
-    body: `
-      <h2>Introduction</h2>
-      <p>This is a sample text lesson. In a real application, this content would be fetched from a database and could include rich HTML content with images, code examples, and more.</p>
+  const { api } = useAuth();
+  const [lessonData, setLessonData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchLessonData = async () => {
+      if (!content?.id || !api) {
+        console.log('Missing content ID or API:', { contentId: content?.id, hasApi: !!api });
+        return;
+      }
       
-      <h2>Key Concepts</h2>
-      <p>Here's where we would discuss the important concepts for this lesson. The content can be as rich as needed with proper formatting.</p>
-      
-      <h3>Subsection Example</h3>
-      <p>We can have nested sections with different heading levels and formatting options like <strong>bold text</strong>, <em>italic text</em>, and more.</p>
-      
-      <pre><code>
-// Example code block
-function exampleFunction() {
-  console.log("Hello, World!");
-}
-      </code></pre>
-      
-      <h2>Conclusion</h2>
-      <p>This concludes our sample text lesson. In a real lesson, this would be much more comprehensive and tailored to the specific topic being covered.</p>
-    `
-  };
+      if (content.type !== 'lesson' && content.type !== 'text') {
+        console.error('Content type is not a text lesson:', content.type);
+        setError(`This content is not a text lesson. Content type: ${content.type}`);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('Fetching lesson data for lesson:', content.id);
+        console.log('Content details:', content);
+        
+        const response = await api.get(`/lessons/${content.id}`);
+        console.log('Lesson API Response:', response.data);
+        
+        if (!response.data) {
+          setError('Empty response from server');
+          return;
+        }
+        
+        setLessonData(response.data);
+      } catch (error) {
+        console.error('Error fetching lesson data:', error);
+        console.error('Error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
+        
+        if (error.response?.status === 403) {
+          setError('You do not have permission to access this lesson');
+        } else if (error.response?.status === 404) {
+          setError('Lesson not found');
+        } else {
+          setError(`Failed to load lesson: ${error.response?.data?.error || error.message}`);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLessonData();
+  }, [content?.id, api]);
+
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center text-red-500 p-8">
+          <p>{error}</p>
+          <div className="mt-4 text-sm text-gray-600">
+            <p>Debug info: Content ID: {content?.id}</p>
+            <p>Content Type: {content?.type}</p>
+            <p>Check console for API response details</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!lessonData) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center text-gray-500 p-8">
+          <p>No lesson content available.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-4">{lessonContent.title}</h1>
+        <h1 className="text-2xl font-bold mb-4">{lessonData.title || content.title}</h1>
         <div 
           className="prose prose-primary dark:prose-invert max-w-none"
-          dangerouslySetInnerHTML={{ __html: lessonContent.body }}
+          dangerouslySetInnerHTML={{ 
+            __html: lessonData.content || '<p>No content available for this lesson.</p>' 
+          }}
         />
       </div>
       
       <div className="border-t border-gray-200 dark:border-gray-700 pt-6 flex justify-between">
         <div className="text-gray-600 dark:text-gray-400 text-sm">
-          Estimated reading time: {content.duration}
+          {lessonData.estimatedTime && (
+            <span>Estimated reading time: {lessonData.estimatedTime} minutes</span>
+          )}
+          {!lessonData.estimatedTime && content.duration && (
+            <span>Estimated reading time: {content.duration}</span>
+          )}
         </div>
         
         <div className="flex items-center space-x-4">
