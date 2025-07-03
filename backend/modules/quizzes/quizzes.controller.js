@@ -1,6 +1,7 @@
 const quizService = require('./quizzes.service');
 const logger = require('../../utils/logger');
 const { HTTP_STATUS } = require('../../utils/constants');
+const prisma = require('../../config/database'); 
 
 
 const createQuiz = async (req, res, next) => {
@@ -23,12 +24,26 @@ const getQuizById = async (req, res, next) => {
     const userId = req.user.id;
     const role = req.user.role;
     
-    if (role === 'INSTRUCTOR' || role === 'ADMIN') {
-      const quiz = await quizService.getQuizWithAnswers(quizId, userId);
-      return res.status(HTTP_STATUS.OK).json(quiz);
+    const quiz = await quizService.getQuizById(quizId, true);
+    
+    const isEnrolled = await prisma.progress.findUnique({
+      where: {
+        userId_courseId: {
+          userId: Number(userId),
+          courseId: quiz.module.courseId
+        }
+      }
+    });
+
+    const isInstructor = quiz.module.course.instructorId === Number(userId);
+    const isAdmin = role === 'ADMIN';
+
+    if (!isEnrolled && !isInstructor && !isAdmin) {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({
+        error: 'You must be enrolled in this course to access this quiz'
+      });
     }
     
-    const quiz = await quizService.getQuizById(quizId);
     res.status(HTTP_STATUS.OK).json(quiz);
   } catch (error) {
     logger.error(`Error in getQuizById: ${error.message}`);

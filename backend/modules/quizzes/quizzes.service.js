@@ -24,73 +24,95 @@ const createQuiz = async (quizData, instructorId) => {
     }
 
     
-    const quiz = await prisma.quiz.create({
-      data: {
-        title: quizData.title,
-        moduleId: Number(quizData.moduleId)
+    const result = await prisma.$transaction(async (tx) => {
+      
+      const quiz = await tx.quiz.create({
+        data: {
+          title: quizData.title,
+          description: quizData.description || '',
+          moduleId: Number(quizData.moduleId),
+          timeLimit: quizData.timeLimit ? Number(quizData.timeLimit) : null,
+          passingScore: quizData.passingScore ? Number(quizData.passingScore) : 70,
+          shuffleQuestions: quizData.shuffleQuestions || false,
+          showCorrectAnswers: quizData.showCorrectAnswers || true,
+          isPublished: quizData.isPublished || false
+        }
+      });
+
+      console.log('Quiz created:', quiz); 
+
+      
+      if (quizData.questions && Array.isArray(quizData.questions) && quizData.questions.length > 0) {
+        console.log('Creating questions for quiz:', quiz.id);
+        console.log('Questions data:', JSON.stringify(quizData.questions, null, 2));
+
+        for (let i = 0; i < quizData.questions.length; i++) {
+          const questionData = quizData.questions[i];
+          
+          
+          let options = null;
+          let correctAnswer = '';
+
+          if (questionData.type === 'multiple_choice') {
+            
+            options = questionData.options.map(opt => opt.text);
+            
+            const correctIndex = questionData.options.findIndex(opt => opt.isCorrect);
+            correctAnswer = correctIndex >= 0 ? correctIndex.toString() : '0';
+          } else if (questionData.type === 'true_false') {
+            options = [];
+            correctAnswer = questionData.answer || 'true';
+          } else if (questionData.type === 'short_answer') {
+            options = [];
+            correctAnswer = questionData.answer || '';
+          }
+
+          console.log(`Creating question ${i + 1}:`, {
+            question: questionData.text || questionData.question,
+            type: questionData.type === 'multiple_choice' ? 'MULTIPLE_CHOICE' : 
+                  questionData.type === 'true_false' ? 'TRUE_FALSE' : 'SHORT_ANSWER',
+            options: options,
+            correctAnswer: correctAnswer,
+            order: i + 1
+          });
+
+          const createdQuestion = await tx.question.create({
+            data: {
+              quizId: quiz.id,
+              question: questionData.text || questionData.question,
+              type: questionData.type === 'multiple_choice' ? 'MULTIPLE_CHOICE' : 
+                    questionData.type === 'true_false' ? 'TRUE_FALSE' : 'SHORT_ANSWER',
+              options: options,
+              correctAnswer: correctAnswer,
+              order: i + 1
+            }
+          });
+
+          console.log('Question created:', createdQuestion);
+        }
+      } else {
+        console.log('No questions provided or questions array is empty');
       }
+
+      
+      return await tx.quiz.findUnique({
+        where: { id: quiz.id },
+        include: {
+          questions: {
+            orderBy: { order: 'asc' }
+          }
+        }
+      });
     });
 
-    return quiz;
+    console.log('Quiz created successfully with questions:', result);
+    return result;
   } catch (error) {
+    console.error('Error in createQuiz:', error);
     logger.error(`Error creating quiz: ${error.message}`);
     throw error;
   }
 };
-
-
-const getQuizById = async (quizId, includeQuestions = true) => {
-  try {
-    const quiz = await prisma.quiz.findUnique({
-      where: { id: Number(quizId) },
-      include: {
-        module: {
-          select: {
-            id: true,
-            title: true,
-            courseId: true,
-            course: {
-              select: {
-                id: true,
-                title: true,
-                instructorId: true
-              }
-            }
-          }
-        },
-        ...(includeQuestions && {
-          questions: {
-            orderBy: { id: 'asc' },
-            select: {
-              id: true,
-              question: true,
-              type: true,
-              options: true,
-              
-              _count: {
-                select: {
-                  answers: true
-                }
-              }
-            }
-          }
-        })
-      }
-    });
-
-    if (!quiz) {
-      const error = new Error('Quiz not found');
-      error.status = HTTP_STATUS.NOT_FOUND;
-      throw error;
-    }
-
-    return quiz;
-  } catch (error) {
-    logger.error(`Error getting quiz: ${error.message}`);
-    throw error;
-  }
-};
-
 
 const getQuizWithAnswers = async (quizId, instructorId) => {
   try {
@@ -564,6 +586,57 @@ const getQuizzesByModule = async (moduleId) => {
     }));
   } catch (error) {
     logger.error(`Error getting quizzes by module: ${error.message}`);
+    throw error;
+  }
+};
+
+const getQuizById = async (quizId, includeQuestions = true) => {
+  try {
+    const quiz = await prisma.quiz.findUnique({
+      where: { id: Number(quizId) },
+      include: {
+        module: {
+          select: {
+            id: true,
+            title: true,
+            courseId: true,
+            course: {
+              select: {
+                id: true,
+                title: true,
+                instructorId: true
+              }
+            }
+          }
+        },
+        ...(includeQuestions && {
+          questions: {
+            orderBy: { order: 'asc' },
+            select: {
+              id: true,
+              question: true,
+              type: true,
+              options: true,
+              correctAnswer: true,
+              order: true
+            }
+          }
+        })
+      }
+    });
+
+    if (!quiz) {
+      const error = new Error('Quiz not found');
+      error.status = HTTP_STATUS.NOT_FOUND;
+      throw error;
+    }
+
+    console.log('Quiz fetched from database:', quiz);
+    console.log('Questions count:', quiz.questions?.length || 0);
+
+    return quiz;
+  } catch (error) {
+    logger.error(`Error getting quiz: ${error.message}`);
     throw error;
   }
 };
