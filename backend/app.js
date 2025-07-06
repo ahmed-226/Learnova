@@ -10,6 +10,7 @@ const lessonsRoutes = require('./modules/lessons/lessons.routes');
 const quizzesRoutes = require('./modules/quizzes/quizzes.routes.js');
 const assignmentsRoutes = require('./modules/assignments/assignments.routes.js');
 const forumsRoutes = require('./modules/forums/forums.routes.js');
+const achievementsRoutes = require('./modules/achievements/achievements.router.js');
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use('/api/lessons', lessonsRoutes);
 app.use('/api/quizzes', quizzesRoutes); 
 app.use('/api/assignments', assignmentsRoutes); 
 app.use('/api/forums', forumsRoutes);
+app.use('/api/achievements', achievementsRoutes);
 
 // Error handling middleware
 app.use(errorHandler);
