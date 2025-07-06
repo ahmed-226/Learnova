@@ -80,7 +80,11 @@ const getCourseContent = async (req, res) => {
       modules: course.modules.map(module => ({
         ...module,
         content: [
-          ...module.lessons.map(lesson => ({ ...lesson, type: 'lesson' })),
+          ...module.lessons.map(lesson => ({ 
+            ...lesson, 
+            type: 'lesson',
+            subType: lesson.videoUrl ? 'video' : 'text' 
+          })),
           ...module.quizzes.map(quiz => ({ ...quiz, type: 'quiz' })),
           ...module.assignments.map(assignment => ({ ...assignment, type: 'assignment' }))
         ].sort((a, b) => a.order - b.order)

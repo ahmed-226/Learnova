@@ -640,18 +640,18 @@ const getCourseContent = async (courseId, userId) => {
 
     
     const transformedCourse = {
-      ...course,
-      modules: course.modules.map(module => ({
-        ...module,
-        content: [
-          ...module.lessons.map(lesson => ({
-            ...lesson,
-            type: 'lesson',
-            subType: lesson.videoUrl ? 'video' : 'text',
-            moduleId: module.id,
-            moduleTitle: module.title,
-            isCompleted: userProgress.some(p => p.lessonId === lesson.id && p.isCompleted)
-          })),
+        ...course,
+        modules: course.modules.map(module => ({
+          ...module,
+          content: [
+            ...module.lessons.map(lesson => ({
+              ...lesson,
+              type: 'lesson',
+              subType: lesson.videoUrl ? 'video' : 'text', 
+              moduleId: module.id,
+              moduleTitle: module.title,
+              isCompleted: userProgress.some(p => p.lessonId === lesson.id && p.isCompleted)
+            })),
           ...module.quizzes.map(quiz => ({
             ...quiz,
             type: 'quiz',
@@ -664,18 +664,65 @@ const getCourseContent = async (courseId, userId) => {
             type: 'assignment',
             moduleId: module.id,
             moduleTitle: module.title,
-            isCompleted: false 
+            isCompleted: false
           }))
-        ].sort((a, b) => a.order - b.order)
+        ].sort((a, b) => (a.order || 0) - (b.order || 0))
       }))
     };
-
     return transformedCourse;
   } catch (error) {
     logger.error(`Error getting course content: ${error.message}`);
     throw error;
   }
 };
+
+const markLessonComplete = async (lessonId, userId) => {
+  try {
+    
+    const lesson = await prisma.lesson.findUnique({
+      where: { id: Number(lessonId) },
+      include: {
+        module: {
+          include: {
+            course: true
+          }
+        }
+      }
+    });
+
+    if (!lesson) {
+      const error = new Error('Lesson not found');
+      error.status = HTTP_STATUS.NOT_FOUND;
+      throw error;
+    }
+
+    
+    await prisma.lessonProgress.upsert({
+      where: {
+        userId_lessonId: {
+          userId: Number(userId),
+          lessonId: Number(lessonId)
+        }
+      },
+      update: {
+        isCompleted: true,
+        completedAt: new Date()
+      },
+      create: {
+        userId: Number(userId),
+        lessonId: Number(lessonId),
+        isCompleted: true,
+        completedAt: new Date()
+      }
+    });
+
+    return { success: true };
+  } catch (error) {
+    logger.error(`Error marking lesson complete: ${error.message}`);
+    throw error;
+  }
+};
+
 
 const getModulesByCourse = async (courseId) => {
   try {
@@ -899,5 +946,6 @@ module.exports = {
   getModulesByCourse,
   reorderModules,
   reorderModuleContent,
-  checkUserEnrollment
+  checkUserEnrollment,
+  markLessonComplete
 };
