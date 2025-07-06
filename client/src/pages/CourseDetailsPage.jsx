@@ -531,10 +531,7 @@ const CourseDetailsPage = () => {
                     </div>
                     
                     {isEnrolled ? (
-                      <Link 
-                        to={`/courses/${courseId}/lesson/1`} 
-                        className="btn btn-primary w-full"
-                      >
+                      <Link to={`/courses/${courseId}/lesson/1`} className="btn btn-primary w-full">
                         Continue Learning
                       </Link>
                     ) : (

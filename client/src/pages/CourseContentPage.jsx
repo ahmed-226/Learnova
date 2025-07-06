@@ -34,7 +34,6 @@ const CourseContentPage = () => {
     }
   };
 
-  
   useEffect(() => {
     const fetchCourseData = async () => {
       if (!courseId || !api) return;
@@ -65,74 +64,72 @@ const CourseContentPage = () => {
     fetchCourseData();
   }, [courseId, api]);
 
-  
-  useEffect(() => {
-    if (!course) return;
+useEffect(() => {
+  if (!course) return;
 
-    
-    const allContent = [];
-    
-    course.modules.forEach((module) => {
+  const allContent = [];
+  
+  course.modules.forEach((module) => {
+    if (module.content && Array.isArray(module.content)) {
+      const moduleItems = module.content.map(item => ({
+        ...item, 
+        moduleId: module.id, 
+        moduleTitle: module.title
+      }));
+      allContent.push(...moduleItems);
+    } else {
+      const moduleItems = [];
       
-      if (module.content && Array.isArray(module.content)) {
-        const moduleItems = module.content.map(item => ({
-          ...item, 
-          moduleId: module.id, 
-          moduleTitle: module.title
-        }));
-        allContent.push(...moduleItems);
-      } 
       
-      else {
-        const moduleItems = [];
-        
-        if (module.lessons) {
+
+      if (module.lessons) {
           moduleItems.push(...module.lessons.map(item => ({
             ...item,
             type: 'lesson',
+            subType: item.videoUrl ? 'video' : 'text', 
             moduleId: module.id,
             moduleTitle: module.title
           })));
-        }
-        
-        if (module.quizzes) {
-          moduleItems.push(...module.quizzes.map(item => ({
-            ...item,
-            type: 'quiz',
-            moduleId: module.id,
-            moduleTitle: module.title
-          })));
-        }
-        
-        if (module.assignments) {
-          moduleItems.push(...module.assignments.map(item => ({
-            ...item,
-            type: 'assignment',
-            moduleId: module.id,
-            moduleTitle: module.title
-          })));
-        }
-        
-        allContent.push(...moduleItems);
-        
-        
-        module.content = moduleItems.sort((a, b) => (a.order || 0) - (b.order || 0));
       }
-    });
+      
+      if (module.quizzes) {
+        moduleItems.push(...module.quizzes.map(item => ({
+          ...item,
+          type: 'quiz',
+          moduleId: module.id,
+          moduleTitle: module.title
+        })));
+      }
+      
+      if (module.assignments) {
+        moduleItems.push(...module.assignments.map(item => ({
+          ...item,
+          type: 'assignment',
+          moduleId: module.id,
+          moduleTitle: module.title
+        })));
+      }
+      
+      allContent.push(...moduleItems);
+      module.content = moduleItems.sort((a, b) => (a.order || 0) - (b.order || 0));
+    }
+  });
 
-    console.log('All content collected:', allContent);
+  console.log('All content collected:', allContent);
 
     
+    allContent.sort((a, b) => (a.order || 0) - (b.order || 0));
+
     if (contentId && contentType && allContent.length > 0) {
       const currentIndex = allContent.findIndex(item => {
-        return item.type === contentType && item.id === parseInt(contentId);
+        
+        return item.type === contentType && item.order === parseInt(contentId);
       });
       
       if (currentIndex !== -1) {
         const content = allContent[currentIndex];
         setCurrentContent(content);
         setActiveModuleId(content.moduleId);
-        
         
         if (currentIndex > 0) {
           setPrevContent(allContent[currentIndex - 1]);
@@ -149,19 +146,16 @@ const CourseContentPage = () => {
         console.log('Content not found:', contentType, contentId);
         setError('Content not found');
       }
-    }
-    
-    else if ((!contentId || !contentType) && allContent.length > 0) {
+    } else if ((!contentId || !contentType) && allContent.length > 0) {
       console.log("Redirecting to first content");
       const firstContent = allContent[0];
       const firstContentType = firstContent.type;
       
       setTimeout(() => {
-        navigate(`/courses/${courseId}/${firstContentType}/${firstContent.id}`, { replace: true });
+        
+        navigate(`/courses/${courseId}/${firstContentType}/${firstContent.order}`, { replace: true });
       }, 100);
-    } 
-    
-    else if (allContent.length === 0) {
+    } else if (allContent.length === 0) {
       setError('This course does not have any content yet.');
     }
   }, [courseId, contentId, contentType, course, navigate]);
@@ -184,43 +178,72 @@ const CourseContentPage = () => {
     return totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
   };
 
-  const markAsCompleted = async () => {
-    if (!currentContent) return;
-    
-    try {
-      if (currentContent.type === 'lesson') {
-        await api.post(`/lessons/${currentContent.id}/complete`);
-        
-        
-        const updatedCourse = {...course};
-        updatedCourse.modules = course.modules.map(module => {
-          if (module.id === currentContent.moduleId) {
-            return {
-              ...module,
-              content: module.content.map(item => {
-                if (item.id === currentContent.id && item.type === 'lesson') {
-                  return { ...item, isCompleted: true };
-                }
-                return item;
-              })
-            };
-          }
-          return module;
-        });
-        
-        setCourse(updatedCourse);
-      }
-      
-      console.log(`Marked content ${currentContent.id} as completed`);
-    } catch (error) {
-      console.error('Error marking content as completed:', error);
-    }
-  };
+const markAsCompleted = async () => {
+  if (!currentContent) return;
   
+  try {
+    console.log('Marking content as completed:', currentContent);
+    
+    
+    let response;
+    if (currentContent.type === 'lesson' || currentContent.type === 'video' || currentContent.type === 'text') {
+      response = await api.post(`/lessons/${currentContent.id}/complete`);
+    } else if (currentContent.type === 'quiz') {
+      response = await api.post(`/quizzes/${currentContent.id}/complete`);
+    } else if (currentContent.type === 'assignment') {
+      response = await api.post(`/assignments/${currentContent.id}/complete`);
+    }
+    
+    console.log('Completion response:', response.data);
+    
+    
+    const updatedCourse = {...course};
+    updatedCourse.modules = course.modules.map(module => {
+      if (module.id === currentContent.moduleId) {
+        return {
+          ...module,
+          content: module.content.map(item => {
+            if (item.id === currentContent.id) {
+              return { ...item, isCompleted: true };
+            }
+            return item;
+          })
+        };
+      }
+      return module;
+    });
+    
+    setCourse(updatedCourse);
+    
+    
+    console.log(`✅ Marked content "${currentContent.title}" as completed`);
+    
+    
+    setTimeout(() => {
+      goToNextContent();
+    }, 1000);
+    
+  } catch (error) {
+    console.error('Error marking content as completed:', error);
+    console.error('Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    
+    let errorMessage = 'Failed to mark content as completed. Please try again.';
+    if (error.response?.data?.error) {
+      errorMessage = error.response.data.error;
+    }
+    
+    alert(errorMessage);
+  }
+};  
   const goToNextContent = () => {
     if (nextContent) {
       const nextContentType = nextContent.type;
-      navigate(`/courses/${courseId}/${nextContentType}/${nextContent.id}`);
+      
+      navigate(`/courses/${courseId}/${nextContentType}/${nextContent.order}`);
       window.scrollTo(0, 0);
     }
   };
@@ -262,77 +285,98 @@ const CourseContentPage = () => {
     }
   };
 
-  const renderContent = () => {
-    if (!currentContent) {
-      return (
-        <div className="p-8 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p>Loading content...</p>
-        </div>
-      );
-    }
+
+
+const renderContent = () => {
+  if (!currentContent) {
+    return (
+      <div className="p-8 text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600 mx-auto mb-4"></div>
+        <p>Loading content...</p>
+      </div>
+    );
+  }
+  
+  try {
     
-    try {
-      if (currentContent.type === 'lesson') {
-        switch (currentContent.subType) {
-          case 'video':
-            return (
-              <VideoLessonContent 
-                content={currentContent} 
-                onComplete={markAsCompleted} 
-                onNext={goToNextContent}
-                isCompleted={currentContent.isCompleted}
-              />
-            );
-          case 'text':
-          default:
-            return (
-              <TextLessonContent 
-                content={currentContent} 
-                onComplete={markAsCompleted} 
-                onNext={goToNextContent}
-                isCompleted={currentContent.isCompleted}
-              />
-            );
-        }
-      }
-      
-      switch (currentContent.type) {
-        case 'quiz':
+    if (currentContent.type === 'lesson') {
+      switch (currentContent.subType) {
+        case 'video':
           return (
-            <QuizContent 
+            <VideoLessonContent 
               content={currentContent} 
               onComplete={markAsCompleted} 
               onNext={goToNextContent}
               isCompleted={currentContent.isCompleted}
             />
           );
-        case 'assignment':
-          return (
-            <AssignmentContent 
-              content={currentContent} 
-              onComplete={markAsCompleted} 
-              onNext={goToNextContent}
-              isCompleted={currentContent.isCompleted}
-            />
-          );
+        case 'text':
         default:
           return (
-            <div className="p-8 text-center border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-              <p>Unknown content type: {currentContent.type}</p>
-            </div>
+            <TextLessonContent 
+              content={currentContent} 
+              onComplete={markAsCompleted} 
+              onNext={goToNextContent}
+              isCompleted={currentContent.isCompleted}
+            />
           );
       }
-    } catch (err) {
-      console.error("Error rendering content:", err);
-      return (
-        <div className="p-8 text-center border border-red-200 bg-red-50 dark:bg-red-900/20 rounded-lg">
-          <p>Error displaying content. Please try again.</p>
-        </div>
-      );
     }
-  };
-
+    
+    
+    switch (currentContent.type) {
+      case 'video':
+        return (
+          <VideoLessonContent 
+            content={currentContent} 
+            onComplete={markAsCompleted} 
+            onNext={goToNextContent}
+            isCompleted={currentContent.isCompleted}
+          />
+        );
+      case 'text':
+        return (
+          <TextLessonContent 
+            content={currentContent} 
+            onComplete={markAsCompleted} 
+            onNext={goToNextContent}
+            isCompleted={currentContent.isCompleted}
+          />
+        );
+      case 'quiz':
+        return (
+          <QuizContent 
+            content={currentContent} 
+            onComplete={markAsCompleted} 
+            onNext={goToNextContent}
+            isCompleted={currentContent.isCompleted}
+          />
+        );
+      case 'assignment':
+        return (
+          <AssignmentContent 
+            content={currentContent} 
+            onComplete={markAsCompleted} 
+            onNext={goToNextContent}
+            isCompleted={currentContent.isCompleted}
+          />
+        );
+      default:
+        return (
+          <div className="p-8 text-center border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+            <p>Unknown content type: {currentContent.type}</p>
+          </div>
+        );
+    }
+  } catch (err) {
+    console.error("Error rendering content:", err);
+    return (
+      <div className="p-8 text-center border border-red-200 bg-red-50 dark:bg-red-900/20 rounded-lg">
+        <p>Error displaying content. Please try again.</p>
+      </div>
+    );
+  }
+};
   if (loading) {
     return (
       <div className="flex flex-col min-h-screen bg-primary-50 dark:bg-dark-bg">
@@ -453,9 +497,10 @@ const CourseContentPage = () => {
                         {module.content.map((item) => (
                           <li key={`${item.type}-${item.id}`}>
                             <Link 
-                              to={`/courses/${courseId}/${item.type}/${item.id}`}
+                              
+                              to={`/courses/${courseId}/${item.type}/${item.order}`}
                               className={`flex items-center px-4 py-2 text-sm ${
-                                currentContent && currentContent.id === item.id && currentContent.type === item.type
+                                currentContent && currentContent.order === item.order && currentContent.type === item.type
                                   ? 'bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
                                   : item.isCompleted
                                     ? 'text-green-600 dark:text-green-400'
@@ -490,12 +535,13 @@ const CourseContentPage = () => {
         </div>
         
         {/* Main Content Area */}
-        <div className="flex-grow overflow-y-auto">
-          {/* Content Navigation */}
+        <div className="flex-1 flex flex-col">
+          {/* Content Navigation Header */}
           <div className="bg-white dark:bg-dark-card border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex justify-between items-center">
             {prevContent ? (
               <Link 
-                to={`/courses/${courseId}/${prevContent.type}/${prevContent.id}`}
+                
+                to={`/courses/${courseId}/${prevContent.type}/${prevContent.order}`}
                 className="flex items-center text-sm text-primary-600 dark:text-primary-400 hover:underline"
               >
                 <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -515,7 +561,8 @@ const CourseContentPage = () => {
             
             {nextContent ? (
               <Link 
-                to={`/courses/${courseId}/${nextContent.type}/${nextContent.id}`}
+                
+                to={`/courses/${courseId}/${nextContent.type}/${nextContent.order}`}
                 className="flex items-center text-sm text-primary-600 dark:text-primary-400 hover:underline"
               >
                 Next
@@ -528,16 +575,11 @@ const CourseContentPage = () => {
             )}
           </div>
           
-          {/* Dynamic Content Area */}
-          <div className="p-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              key={currentContent?.id}
-            >
+          {/* Content Display Area */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-6">
               {renderContent()}
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>
