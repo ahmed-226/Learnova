@@ -7,7 +7,7 @@ import Footer from '../components/layout/Footer';
 import CourseCard from '../components/profile/CourseCard';
 import ChangePasswordModal from '../components/profile/ChangePasswordModal';
 import DeleteAccountModal from '../components/profile/DeleteAccountModal';
-
+import AchievementCard from '../components/profile/AchievementCard';
 
 
 const ProfilePage = () => {
@@ -24,7 +24,14 @@ const ProfilePage = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  
+  const [achievements, setAchievements] = useState([]);
+  const [achievementStats, setAchievementStats] = useState({
+    totalAchievements: 0,
+    totalPoints: 0,
+    rarityBreakdown: {}
+  });
+
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -36,6 +43,26 @@ const ProfilePage = () => {
       fetchUserProfile();
     }
   }, [authUser]);
+
+  useEffect(() => {
+    const fetchAchievements = async () => {
+      try {
+        const [achievementsResponse, statsResponse] = await Promise.all([
+          api.get('/achievements/user'),
+          api.get('/achievements/user/stats')
+        ]);
+        
+        setAchievements(achievementsResponse.data);
+        setAchievementStats(statsResponse.data);
+      } catch (error) {
+        console.error('Error fetching achievements:', error);
+      }
+    };
+
+    if (user) {
+      fetchAchievements();
+    }
+  }, [user, api]);
 
   const fetchUserProfile = async () => {
     try {
@@ -546,21 +573,74 @@ const ProfilePage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4 }}
-              className="card"
             >
-              <div className="text-center py-8">
-                <div className="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-700 mx-auto mb-4 flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                  </svg>
+              {achievements.length > 0 ? (
+                <div className="space-y-6">
+                  {/* Achievement Stats */}
+                  <div className="card">
+                    <h3 className="text-xl font-semibold mb-4">Achievement Stats</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-primary-600 dark:text-primary-400">
+                          {achievementStats.totalAchievements}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Total Badges</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                          {achievementStats.totalPoints}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Points Earned</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                          {achievementStats.rarityBreakdown.RARE || 0}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Rare Badges</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                          {achievementStats.rarityBreakdown.LEGENDARY || 0}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Legendary</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Achievement Gallery */}
+                  <div className="card">
+                    <h3 className="text-xl font-semibold mb-4">Your Achievements</h3>
+                    <div className="flex flex-wrap justify-start gap-8 py-4">
+                      {achievements.map((userAchievement) => (
+                        <div key={userAchievement.id} className="flex flex-col items-center">
+                          <AchievementCard
+                            achievement={userAchievement.achievement}
+                            userAchievement={userAchievement}
+                            size="large"
+                          />
+                          <span className="mt-2 text-sm text-gray-700 dark:text-gray-200 font-medium text-center max-w-[120px] truncate">
+                            {userAchievement.achievement.title}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <h3 className="text-xl font-medium mb-2">No Achievements Yet</h3>
-                <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-                  {user.role === 'INSTRUCTOR' 
-                    ? 'Create courses and help students learn to unlock achievements.'
-                    : 'Continue your learning journey to unlock achievements and certificates.'}
-                </p>
-              </div>
+              ) : (
+                <div className="card">
+                  <div className="text-center py-12">
+                    <div className="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-700 mx-auto mb-4 flex items-center justify-center">
+                      <svg className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-medium mb-2">No Achievements Yet</h3>
+                    <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
+                      Complete courses to unlock achievements and certificates. Start your learning journey today!
+                    </p>
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
           

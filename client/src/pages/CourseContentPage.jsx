@@ -8,6 +8,8 @@ import VideoLessonContent from '../components/CourseContents/VideoLessonContent'
 import QuizContent from '../components/CourseContents/QuizContent';
 import AssignmentContent from '../components/CourseContents/AssignmentContent';
 import { useAuth } from '../contexts/AuthContext';
+import CourseCompletionCelebration from '../components/profile/CourseCompletionCelebration';
+
 
 const CourseContentPage = () => {
   const params = useParams();
@@ -25,6 +27,8 @@ const CourseContentPage = () => {
   const [prevContent, setPrevContent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
+  const [completionAchievement, setCompletionAchievement] = useState(null);
   
   const toggleModule = (moduleId) => {
     if (activeModuleId === moduleId) {
@@ -177,6 +181,37 @@ useEffect(() => {
     
     return totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
   };
+
+    const checkCourseCompletion = async () => {
+    if (!course) return;
+
+    
+    let totalContent = 0;
+    let completedContent = 0;
+
+    course.modules.forEach(module => {
+      if (module.content) {
+        module.content.forEach(item => {
+          totalContent++;
+          if (item.isCompleted) completedContent++;
+        });
+      }
+    });
+
+    
+    if (totalContent > 0 && completedContent === totalContent) {
+      try {
+        const response = await api.post(`/courses/${courseId}/complete`);
+        if (response.data.achievement) {
+          setCompletionAchievement(response.data.achievement);
+          setShowCompletionCelebration(true);
+        }
+      } catch (error) {
+        console.error('Error completing course:', error);
+      }
+    }
+  };
+
 
 const markAsCompleted = async () => {
   if (!currentContent) return;
@@ -583,6 +618,13 @@ const renderContent = () => {
           </div>
         </div>
       </div>
+
+      <CourseCompletionCelebration
+        isOpen={showCompletionCelebration}
+        onClose={() => setShowCompletionCelebration(false)}
+        course={course}
+        achievement={completionAchievement}
+      />
       
       <Footer />
     </div>
