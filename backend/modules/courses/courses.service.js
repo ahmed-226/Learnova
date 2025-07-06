@@ -2,7 +2,50 @@ const prisma = require('../../config/database');
 const logger = require('../../utils/logger');
 const { HTTP_STATUS } = require('../../utils/constants');
 const { uploadToCloudinary } = require('../../utils/fileUpload');
+const { createCourseCompletionAchievement } = require('../achievements/achievements.service');
 
+
+const completeCourse = async (courseId, userId) => {
+  try {
+    
+    const existingCompletion = await prisma.courseCompletion.findUnique({
+      where: {
+        userId_courseId: {
+          userId: Number(userId),
+          courseId: Number(courseId)
+        }
+      }
+    });
+
+    if (existingCompletion) {
+      return { completion: existingCompletion };
+    }
+
+    
+    const completion = await prisma.courseCompletion.create({
+      data: {
+        userId: Number(userId),
+        courseId: Number(courseId),
+        grade: 100
+      }
+    });
+
+    
+    try {
+      const achievement = await createCourseCompletionAchievement(userId, courseId);
+      return {
+        completion,
+        achievement
+      };
+    } catch (achievementError) {
+      logger.error(`Error awarding achievement: ${achievementError.message}`);
+      return { completion };
+    }
+  } catch (error) {
+    logger.error(`Error completing course: ${error.message}`);
+    throw error;
+  }
+};
 
 const createCourse = async (courseData, instructorId, files) => {
   try {
@@ -947,5 +990,6 @@ module.exports = {
   reorderModules,
   reorderModuleContent,
   checkUserEnrollment,
-  markLessonComplete
+  markLessonComplete,
+  completeCourse
 };

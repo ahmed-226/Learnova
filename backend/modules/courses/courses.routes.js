@@ -7,15 +7,15 @@ const schema = require('./courses.schema');
 const { checkRole } = require('../users/users.controller');
 const { courseContentUpload } = require('../../middleware/upload');
 
-// Public routes 
+
 router.get('/', validate(schema.listCourses), controller.listCourses);
 router.get('/:courseId', controller.getCourseById);
 router.get('/:courseId/content', auth, controller.getCourseContent);
 
-// Protected routes 
+
 router.use(auth);
 
-// Student enrollment routes
+
 router.post('/:courseId/enroll', 
   validate({ params: schema.enrollmentParam }), 
   controller.enrollInCourse
@@ -25,9 +25,9 @@ router.delete('/:courseId/enroll',
   controller.unenrollFromCourse
 );
 router.get('/:courseId/enrollment-status', controller.checkEnrollment);
+router.post('/:courseId/complete', auth, controller.completeCourse);
 
 
-// Instructor routes 
 router.post('/',
   auth,
   checkRole('INSTRUCTOR'),
@@ -64,7 +64,7 @@ router.put('/:courseId', checkRole('INSTRUCTOR'), validate(schema.updateCourse),
 router.delete('/:courseId', checkRole('INSTRUCTOR'), controller.deleteCourse);
 router.get('/:courseId/students', checkRole('INSTRUCTOR'), controller.getEnrolledStudents);
 
-// Module management
+
 router.post('/:courseId/modules', checkRole('INSTRUCTOR'), validate(schema.createModule), controller.addModule);
 router.put('/modules/:moduleId', checkRole('INSTRUCTOR'), validate(schema.updateModule), controller.updateModule);
 

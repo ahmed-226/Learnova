@@ -311,6 +311,24 @@ const checkEnrollment = async (req, res, next) => {
   }
 };
 
+const completeCourse = async (req, res, next) => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user.id;
+
+    const result = await courseService.completeCourse(courseId, userId);
+    
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      ...result,
+      message: 'Course completed successfully!'
+    });
+  } catch (error) {
+    logger.error(`Error in completeCourse: ${error.message}`);
+    next(error);
+  }
+};
+
 module.exports = {
   getCourseById,
   createCourse,
@@ -327,5 +345,6 @@ module.exports = {
   getModulesByCourse,
   reorderModules,
   reorderModuleContent,
-  checkEnrollment
+  checkEnrollment,
+  completeCourse
 };
