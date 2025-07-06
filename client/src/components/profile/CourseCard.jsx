@@ -14,7 +14,7 @@ const CourseCard = ({ course }) => {
   if (!course.id) {
     console.error("Course ID is missing:", course);
     return (
-      <div className="card h-[280px] flex flex-col overflow-hidden">
+      <div className="card h-[360px] flex flex-col overflow-hidden">
         <div className="p-4 flex items-center justify-center">
           <p className="text-gray-500">Invalid course data</p>
         </div>
@@ -28,7 +28,7 @@ const CourseCard = ({ course }) => {
   const lastAccessed = course.lastAccessed || 'Never';
 
   return (
-    <div className="card h-[280px] flex flex-col overflow-hidden">
+    <div className="card h-[360px] flex flex-col overflow-hidden">
       {/* Course Image */}
       <div className="relative h-32 bg-gray-200 dark:bg-gray-700">
         {course.coverImage ? (
@@ -55,9 +55,21 @@ const CourseCard = ({ course }) => {
           </div>
         </div>
         
+        {/* Instructor Badge - Shows student count */}
         {course.isInstructor && (
           <span className="absolute top-2 right-2 bg-primary-600 text-white text-xs px-2 py-1 rounded">
             {course.studentsEnrolled || 0} students
+          </span>
+        )}
+        
+        {/* Student Badge - Shows completion status */}
+        {!course.isInstructor && (
+          <span className={`absolute top-2 right-2 text-xs px-2 py-1 rounded ${
+            course.isCompleted 
+              ? 'bg-green-600 text-white'
+              : 'bg-blue-600 text-white'
+          }`}>
+            {course.isCompleted ? 'Completed' : 'In Progress'}
           </span>
         )}
       </div>
@@ -68,41 +80,69 @@ const CourseCard = ({ course }) => {
           <h3 className="text-lg font-medium text-primary-900 dark:text-primary-100 line-clamp-2">
             {courseTitle}
           </h3>
-          <span className={`px-2 py-1 rounded-md text-xs whitespace-nowrap ml-2 ${
-            course.isCompleted 
-              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-              : `bg-${color}-100 dark:bg-${color}-900/30 text-${color}-700 dark:text-${color}-400`
-          }`}>
-            {course.isCompleted ? 'Completed' : `${courseProgress}%`}
-          </span>
+          
+          {/* Status Badge */}
+          {course.isInstructor ? (
+            <span className="px-2 py-1 rounded-md text-xs whitespace-nowrap ml-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+              Published
+            </span>
+          ) : (
+            <span className={`px-2 py-1 rounded-md text-xs whitespace-nowrap ml-2 ${
+              course.isCompleted 
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                : `bg-${color}-100 dark:bg-${color}-900/30 text-${color}-700 dark:text-${color}-400`
+            }`}>
+              {course.isCompleted ? 'Completed' : `${courseProgress}%`}
+            </span>
+          )}
         </div>
         
         <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
           {course.isInstructor ? 'Your Course' : `Instructor: ${instructorName}`}
         </p>
         
-        {/* Progress Bar */}
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-4">
-          <div 
-            className={`h-2.5 rounded-full ${
-              course.isCompleted 
-                ? 'bg-green-500' 
-                : color === 'green' ? 'bg-green-500'
-                : color === 'blue' ? 'bg-blue-500'
-                : color === 'yellow' ? 'bg-yellow-500'
-                : 'bg-red-500'
-            }`}
-            style={{ width: `${courseProgress}%` }}
-          ></div>
-        </div>
+        {/* Progress Bar - Only for students */}
+        {!course.isInstructor && (
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-4">
+            <div 
+              className={`h-2.5 rounded-full ${
+                course.isCompleted 
+                  ? 'bg-green-500' 
+                  : color === 'green' ? 'bg-green-500'
+                  : color === 'blue' ? 'bg-blue-500'
+                  : color === 'yellow' ? 'bg-yellow-500'
+                  : 'bg-red-500'
+              }`}
+              style={{ width: `${courseProgress}%` }}
+            ></div>
+          </div>
+        )}
+        
+        {/* Course Stats - Only for instructors */}
+        {course.isInstructor && (
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="text-center">
+              <div className="text-lg font-semibold text-primary-600 dark:text-primary-400">
+                {course.studentsEnrolled || 0}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Students</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-semibold text-primary-600 dark:text-primary-400">
+                4.8
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Rating</div>
+            </div>
+          </div>
+        )}
         
         {/* Footer */}
         <div className="flex justify-between items-center mt-auto">
           <span className="text-xs text-gray-500 dark:text-gray-400">
-            Last accessed: {lastAccessed}
+            {course.isInstructor ? `Updated: ${lastAccessed}` : `Last accessed: ${lastAccessed}`}
           </span>
           <Link 
-            to={course.isInstructor ? `/courses/${course.id}/modules` : `/courses/${course.id}`}
+            to={course.isInstructor ? `/courses/${course.id}/modules` : `/courses/${course.id}/lesson/1`}
             className="btn btn-primary text-sm py-1 px-3"
           >
             {course.isInstructor ? 'Manage' : 'Continue Learning'}
@@ -111,7 +151,6 @@ const CourseCard = ({ course }) => {
       </div>
     </div>
   );
-
 };
 
 export default CourseCard;
