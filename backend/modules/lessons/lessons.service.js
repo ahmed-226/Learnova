@@ -168,19 +168,15 @@ const getLessonsByModule = async (moduleId) => {
 
 const markLessonComplete = async (lessonId, userId) => {
   try {
+    console.log(`Marking lesson ${lessonId} as complete for user ${userId}`);
+    
     
     const lesson = await prisma.lesson.findUnique({
       where: { id: Number(lessonId) },
       include: {
         module: {
           include: {
-            course: {
-              include: {
-                progress: {
-                  where: { userId: Number(userId) }
-                }
-              }
-            }
+            course: true
           }
         }
       }
@@ -192,18 +188,12 @@ const markLessonComplete = async (lessonId, userId) => {
       throw error;
     }
 
-    if (lesson.module.course.progress.length === 0) {
-      const error = new Error('You must be enrolled in this course');
-      error.status = HTTP_STATUS.FORBIDDEN;
-      throw error;
-    }
-
     
     const lessonProgress = await prisma.lessonProgress.upsert({
       where: {
-        lessonId_userId: {
-          lessonId: Number(lessonId),
-          userId: Number(userId)
+        userId_lessonId: {
+          userId: Number(userId),
+          lessonId: Number(lessonId)
         }
       },
       update: {
@@ -211,16 +201,17 @@ const markLessonComplete = async (lessonId, userId) => {
         completedAt: new Date()
       },
       create: {
-        lessonId: Number(lessonId),
         userId: Number(userId),
+        lessonId: Number(lessonId),
         isCompleted: true,
         completedAt: new Date()
       }
     });
 
+    console.log('Lesson progress updated:', lessonProgress);
     return lessonProgress;
   } catch (error) {
-    logger.error(`Error marking lesson complete: ${error.message}`);
+    console.error(`Error marking lesson complete: ${error.message}`);
     throw error;
   }
 };

@@ -76,15 +76,25 @@ const getLessonsByModule = async (req, res, next) => {
 
 const markLessonComplete = async (req, res, next) => {
   try {
-    const lessonId = req.params.lessonId;
+    const { lessonId } = req.params;
     const userId = req.user.id;
 
-    const progress = await lessonService.markLessonComplete(lessonId, userId);
-    logger.info(`Lesson ${lessonId} marked complete by user ${userId}`);
-    res.status(HTTP_STATUS.OK).json(progress);
+    console.log(`Marking lesson ${lessonId} as complete for user ${userId}`);
+
+    const result = await lessonService.markLessonComplete(lessonId, userId);
+    
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: 'Lesson marked as completed',
+      data: result
+    });
   } catch (error) {
+    console.error('Error marking lesson complete:', error);
     logger.error(`Error in markLessonComplete: ${error.message}`);
-    next(error);
+    res.status(error.status || HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      error: error.message || 'Failed to mark lesson as completed'
+    });
   }
 };
 
@@ -94,5 +104,6 @@ module.exports = {
   getLessonById,
   deleteLesson,
   getLessonsByModule,
-  markLessonComplete 
+  markLessonComplete,
+  markLessonComplete
 };
