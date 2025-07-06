@@ -1,255 +1,195 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const VideoLessonContent = ({ content, onComplete, onNext, isCompleted }) => {
+  console.log('VideoLessonContent received content:', content);
+  console.log('Video URL:', content.videoUrl);
+  
   const [isWatched, setIsWatched] = useState(isCompleted);
-  const [videoType, setVideoType] = useState('youtube');
-  const [videoId, setVideoId] = useState(null);
+  const [videoUrl, setVideoUrl] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const videoRef = useRef(null);
-  
-  
-  useEffect(() => {
-    setIsLoading(true);
-    
-    try {
-      if (!content.videoUrl) {
-        setError('No video URL provided');
-        setIsLoading(false);
-        return;
-      }
+  const [localCompleted, setLocalCompleted] = useState(isCompleted);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-      
-      if (content.videoType) {
-        setVideoType(content.videoType);
-        
-        if (content.videoType === 'upload') {
-          
-          setVideoId(content.videoUrl);
-        } else if (content.videoType === 'youtube') {
-          extractYoutubeId(content.videoUrl);
-        } else if (content.videoType === 'vimeo') {
-          extractVimeoId(content.videoUrl);
-        }
-      } else {
-        
-        if (content.videoUrl.includes('youtube.com') || content.videoUrl.includes('youtu.be')) {
-          setVideoType('youtube');
-          extractYoutubeId(content.videoUrl);
-        } else if (content.videoUrl.includes('vimeo.com')) {
-          setVideoType('vimeo');
-          extractVimeoId(content.videoUrl);
-        } else {
-          
-          setVideoType('upload');
-          setVideoId(content.videoUrl);
-        }
-      }
-    } catch (err) {
-      console.error('Error parsing video URL:', err);
-      setError('Could not load the video. Please try again later.');
+  const handleComplete = async () => {
+    setIsSubmitting(true);
+    try {
+      await onComplete();
+      setLocalCompleted(true);
+      console.log('Video lesson marked as completed successfully');
+    } catch (error) {
+      console.error('Error completing video lesson:', error);
     } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+
+  useEffect(() => {
+    if (!content.videoUrl) {
+      setError('No video URL provided');
       setIsLoading(false);
+      return;
     }
-  }, [content.videoUrl, content.videoType]);
-  
-  
-  const extractYoutubeId = (url) => {
-    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
-    const match = url.match(regExp);
-    const id = (match && match[7].length === 11) ? match[7] : null;
+
+    let processedUrl = content.videoUrl;
     
-    if (id) {
-      setVideoId(id);
-    } else {
-      
-      setError('Invalid YouTube URL');
-      setVideoId('dQw4w9WgXcQ'); 
+    if (content.videoUrl.includes('youtube.com/embed/')) {
+      processedUrl = content.videoUrl;
     }
-  };
-  
-  
-  const extractVimeoId = (url) => {
-    const regExp = /(?:vimeo\.com\/|player\.vimeo\.com\/video\/|vimeo\.com\/channels\/\w+\/|vimeo\.com\/groups\/[^\/]+\/videos\/)(\d+)/;
-    const match = url.match(regExp);
-    const id = match ? match[1] : null;
-    
-    if (id) {
-      setVideoId(id);
-    } else {
-      setError('Invalid Vimeo URL');
+    else if (content.videoUrl.includes('youtube.com/watch?v=')) {
+      const videoId = content.videoUrl.split('watch?v=')[1].split('&')[0];
+      processedUrl = `https://www.youtube.com/embed/${videoId}`;
     }
-  };
-  
-  
-  const handleVideoEnd = () => {
-    setIsWatched(true);
-    
-  };
-  
-  
-  const renderVideoPlayer = () => {
-    if (isLoading) {
-      return (
-        <div className="flex justify-center items-center h-64 bg-gray-100 dark:bg-gray-800 rounded-lg">
+    else if (content.videoUrl.includes('youtu.be/')) {
+      const videoId = content.videoUrl.split('youtu.be/')[1].split('?')[0];
+      processedUrl = `https://www.youtube.com/embed/${videoId}`;
+    }
+
+    setVideoUrl(processedUrl);
+    setIsLoading(false);
+  }, [content.videoUrl]);
+
+  if (isLoading) {
+    return (
+      <div className="w-full h-full flex justify-center items-center">
+        <div className="flex justify-center items-center h-96 bg-gray-100 dark:bg-gray-800 rounded-lg w-full">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
         </div>
-      );
-    }
-    
-    if (error) {
-      return (
-        <div className="flex justify-center items-center h-64 bg-gray-100 dark:bg-gray-800 rounded-lg">
-          <div className="text-center text-red-500">
-            <svg className="h-12 w-12 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p>{error}</p>
-          </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full h-full flex justify-center items-center">
+        <div className="text-center text-red-500 p-8">
+          <p>{error}</p>
+          <p className="text-sm mt-2">Debug: {content.videoUrl}</p>
         </div>
-      );
-    }
-    
-    switch (videoType) {
-      case 'youtube':
-        return (
-          <div className="relative pb-9/16 h-0 rounded-lg overflow-hidden bg-black mb-6">
-            <iframe
-              className="absolute top-0 left-0 w-full h-full"
-              src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1`}
-              title={content.title}
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              onLoad={() => console.log('YouTube video loaded')}
-            ></iframe>
-          </div>
-        );
-        
-      case 'vimeo':
-        return (
-          <div className="relative pb-9/16 h-0 rounded-lg overflow-hidden bg-black mb-6">
-            <iframe
-              className="absolute top-0 left-0 w-full h-full"
-              src={`https://player.vimeo.com/video/${videoId}`}
-              title={content.title}
-              frameBorder="0"
-              allow="autoplay; fullscreen; picture-in-picture"
-              allowFullScreen
-              onLoad={() => console.log('Vimeo video loaded')}
-            ></iframe>
-          </div>
-        );
-        
-      case 'upload':
-        return (
-          <div className="rounded-lg overflow-hidden bg-black mb-6">
-            <video
-              ref={videoRef}
-              className="w-full"
-              controls
-              onEnded={handleVideoEnd}
-              poster={content.thumbnail || ''}
-            >
-              <source src={videoId} type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
-          </div>
-        );
-        
-      default:
-        return (
-          <div className="flex justify-center items-center h-64 bg-gray-100 dark:bg-gray-800 rounded-lg">
-            <div className="text-center text-red-500">
-              <p>Unsupported video type</p>
-            </div>
-          </div>
-        );
-    }
-  };
-  
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-4">{content.title}</h1>
-        
-        {/* Video Player */}
-        {renderVideoPlayer()}
-        
-        {/* Video Description */}
-        <div className="prose prose-primary dark:prose-invert max-w-none">
-          {content.description ? (
-            <div dangerouslySetInnerHTML={{ __html: content.description }} />
-          ) : (
-            <>
-              <h2>About this video</h2>
-              <p>This video helps you understand key concepts covered in this module. Watch it carefully to improve your understanding of the topic.</p>
-            </>
-          )}
-          
-          {content.resources && (
-            <>
-              <h3>Resources</h3>
-              <ul>
-                {content.resources.map((resource, index) => (
-                  <li key={index}>
-                    <a 
-                      href={resource.url} 
-                      className="text-primary-600 dark:text-primary-400"
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                    >
-                      {resource.title}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          
-          {!content.resources && (
-            <>
-              <h3>Resources</h3>
-              <ul>
-                <li><a href="#" className="text-primary-600 dark:text-primary-400">Downloadable slides</a></li>
-                <li><a href="#" className="text-primary-600 dark:text-primary-400">Example code</a></li>
-                <li><a href="#" className="text-primary-600 dark:text-primary-400">Additional resources</a></li>
-              </ul>
-            </>
-          )}
+    <div className="w-full h-full flex flex-col">
+      {/* Video Title */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          {content.title}
+        </h1>
+      </div>
+      
+      {/* Video Player - Large and Responsive */}
+      <div className="flex-1 mb-6">
+        <div className="relative w-full h-full min-h-[400px] lg:min-h-[500px] xl:min-h-[800px]">
+          <iframe
+            className="absolute top-0 left-0 w-full h-full rounded-xl shadow-lg"
+            src={videoUrl}
+            title={content.title}
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          ></iframe>
         </div>
       </div>
       
-      <div className="border-t border-gray-200 dark:border-gray-700 pt-6 flex justify-between">
-        <div className="text-gray-600 dark:text-gray-400 text-sm">
-          Video duration: {content.duration || 'Not specified'}
-        </div>
+      {/* Content Below Video */}
+      <div className="flex-shrink-0 space-y-6">
+        {/* Video Description */}
+        {content.description && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+              About this video
+            </h3>
+            <div 
+              className="prose prose-gray dark:prose-invert max-w-none text-gray-700 dark:text-gray-300"
+              dangerouslySetInnerHTML={{ __html: content.description }} 
+            />
+          </div>
+        )}
         
-        <div className="flex items-center space-x-4">
-          {!isCompleted ? (
-            <button 
-              onClick={onComplete}
-              className="btn btn-primary"
-            >
-              Mark as Completed
-            </button>
-          ) : (
-            <span className="text-green-600 dark:text-green-400 flex items-center">
-              <svg className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              Completed
-            </span>
+        {/* Video Info and Link */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Duration */}
+          {content.duration && (
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Duration
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                {content.duration}
+              </p>
+            </div>
           )}
           
-          <button 
-            onClick={onNext}
-            className="btn btn-outline"
-          >
-            Continue
-          </button>
+          {/* Video Link */}
+          <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Video Link
+            </h3>
+            <a 
+              href={content.videoUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary-600 dark:text-primary-400 hover:underline text-sm break-all"
+            >
+              Watch on YouTube
+            </a>
+          </div>
+        </div>
+        
+        {/* Action Buttons */}
+      <div className="flex justify-between items-center pt-6 border-t border-gray-200 dark:border-gray-700">
+        <div></div>
+        
+        <div className="flex items-center space-x-4">
+          {!localCompleted ? (
+            <button 
+              onClick={handleComplete}
+              disabled={isSubmitting}
+              className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? (
+                <span className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Completing...
+                </span>
+              ) : (
+                'Mark as Completed'
+              )}
+            </button>
+          ) : (
+            <div className="flex items-center space-x-3">
+              <span className="text-green-600 dark:text-green-400 flex items-center font-medium">
+                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Completed!
+              </span>
+              <button 
+                onClick={onNext}
+                className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+              >
+                Next Lesson
+              </button>
+            </div>
+          )}
+          
+          {!localCompleted && (
+            <button 
+              onClick={onNext}
+              className="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
+            >
+              Skip for Now
+            </button>
+          )}
         </div>
       </div>
+    </div>
     </div>
   );
 };

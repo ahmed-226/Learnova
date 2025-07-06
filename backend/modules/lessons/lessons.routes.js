@@ -20,5 +20,6 @@ router.post('/:lessonId/complete', controller.markLessonComplete);
 router.post('/', checkRole('INSTRUCTOR'), controller.createLesson);
 router.put('/:lessonId', checkRole('INSTRUCTOR'), controller.updateLesson);
 router.delete('/:lessonId', checkRole('INSTRUCTOR'), controller.deleteLesson);
+router.post('/:lessonId/complete', auth, controller.markLessonComplete);
 
 module.exports = router;
