@@ -451,6 +451,354 @@ const getUserEnrollments = async (userId) => {
   }
 };
 
+// Add these functions to your existing users.service.js
+
+const getDashboard = async (userId) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: Number(userId) },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        avatar: true
+      }
+    });
+
+    if (!user) {
+      const error = new Error('User not found');
+      error.status = HTTP_STATUS.NOT_FOUND;
+      throw error;
+    }
+
+    let dashboardData = { user };
+
+    if (user.role === 'STUDENT') {
+      // Get enrolled courses with progress
+      const progress = await prisma.progress.findMany({
+        where: { userId: Number(userId) },
+        include: {
+          course: {
+            select: {
+              id: true,
+              title: true,
+              coverImage: true,
+              category: true,
+              instructor: {
+                select: {
+                  firstName: true,
+                  lastName: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Get course completions (certificates)
+      const completions = await prisma.courseCompletion.findMany({
+        where: { userId: Number(userId) }
+      });
+
+      // Get recent activities
+      const recentActivities = await getRecentActivities(userId);
+
+      // Get popular courses
+      const popularCourses = await getPopularCourses();
+
+      // Calculate stats
+      const totalHours = progress.reduce((sum, p) => sum + (p.hoursSpent || 0), 0);
+      const averageScore = progress.length > 0 
+        ? Math.round(progress.reduce((sum, p) => sum + (p.progress || 0), 0) / progress.length)
+        : 0;
+
+      dashboardData = {
+        ...dashboardData,
+        enrolledCourses: progress,
+        stats: {
+          hoursSpent: totalHours,
+          certificatesEarned: completions.length,
+          averageScore: averageScore
+        },
+        recentActivities,
+        popularCourses
+      };
+    } else if (user.role === 'INSTRUCTOR') {
+      // Get instructor courses
+      const courses = await prisma.course.findMany({
+        where: { instructorId: userId },
+        include: {
+          _count: {
+            select: {
+              progress: true
+            }
+          }
+        }
+      });
+
+      // Get recent activities for instructor
+      const recentActivities = await getInstructorRecentActivities(userId);
+
+      dashboardData = {
+        ...dashboardData,
+        instructorCourses: courses,
+        recentActivities
+      };
+    }
+
+    return dashboardData;
+  } catch (error) {
+    logger.error(`Error getting user dashboard: ${error.message}`);
+    throw error;
+  }
+};
+
+const getRecentActivities = async (userId) => {
+  try {
+    const activities = [];
+
+    // Get recent course enrollments
+    const enrollments = await prisma.progress.findMany({
+      where: { userId: Number(userId) },
+      include: {
+        course: {
+          select: { title: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 3
+    });
+
+    enrollments.forEach(enrollment => {
+      activities.push({
+        id: `enrollment-${enrollment.id}`,
+        type: 'course-enrolled',
+        courseName: enrollment.course.title,
+        date: enrollment.createdAt,
+        icon: 'book-open'
+      });
+    });
+
+    // Get recent assignment submissions
+    const submissions = await prisma.submission.findMany({
+      where: { userId: Number(userId) },
+      include: {
+        assignment: {
+          include: {
+            module: {
+              include: {
+                course: {
+                  select: { title: true }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 3
+    });
+
+    submissions.forEach(submission => {
+      activities.push({
+        id: `submission-${submission.id}`,
+        type: 'assignment-submitted',
+        courseName: submission.assignment.module.course.title,
+        assignmentTitle: submission.assignment.title,
+        date: submission.createdAt,
+        icon: 'clipboard'
+      });
+    });
+
+    // Get recent forum posts
+    const posts = await prisma.post.findMany({
+      where: { authorId: Number(userId) },
+      include: {
+        thread: {
+          include: {
+            forum: {
+              include: {
+                course: {
+                  select: { title: true }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 3
+    });
+
+    posts.forEach(post => {
+      activities.push({
+        id: `post-${post.id}`,
+        type: 'forum-post',
+        courseName: post.thread.forum.course.title,
+        threadTitle: post.thread.title,
+        date: post.createdAt,
+        icon: 'chat'
+      });
+    });
+
+    // Sort by date and return latest 5
+    return activities
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 5);
+  } catch (error) {
+    logger.error(`Error getting recent activities: ${error.message}`);
+    return [];
+  }
+};
+
+const getInstructorRecentActivities = async (instructorId) => {
+  try {
+    const activities = [];
+
+    // Get recent submissions to instructor's courses
+    const submissions = await prisma.submission.findMany({
+      where: {
+        assignment: {
+          module: {
+            course: {
+              instructorId: Number(instructorId)
+            }
+          }
+        }
+      },
+      include: {
+        user: {
+          select: { firstName: true, lastName: true }
+        },
+        assignment: {
+          include: {
+            module: {
+              include: {
+                course: {
+                  select: { title: true }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5
+    });
+
+    submissions.forEach(submission => {
+      activities.push({
+        id: `submission-${submission.id}`,
+        type: 'assignment-received',
+        courseName: submission.assignment.module.course.title,
+        studentName: `${submission.user.firstName} ${submission.user.lastName}`,
+        assignmentTitle: submission.assignment.title,
+        date: submission.createdAt,
+        icon: 'clipboard',
+        needsGrading: !submission.grade
+      });
+    });
+
+    return activities;
+  } catch (error) {
+    logger.error(`Error getting instructor recent activities: ${error.message}`);
+    return [];
+  }
+};
+
+const getPopularCourses = async () => {
+  try {
+    const courses = await prisma.course.findMany({
+      include: {
+        instructor: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        },
+        _count: {
+          select: {
+            progress: true
+          }
+        }
+      },
+      orderBy: {
+        progress: {
+          _count: 'desc'
+        }
+      },
+      take: 3
+    });
+
+    return courses.map(course => ({
+      id: course.id,
+      title: course.title,
+      instructor: `${course.instructor.firstName} ${course.instructor.lastName}`,
+      students: course._count.progress,
+      rating: 4.5 + Math.random() * 0.5, // Mock rating for now
+      category: course.category,
+      price: course.price
+    }));
+  } catch (error) {
+    logger.error(`Error getting popular courses: ${error.message}`);
+    return [];
+  }
+};
+
+// Update the existing function
+const getUserStats = async (userId) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: Number(userId) },
+      select: { role: true }
+    });
+
+    let stats = {};
+
+    if (user.role === 'STUDENT') {
+      const progress = await prisma.progress.findMany({
+        where: { userId: Number(userId) }
+      });
+
+      const completions = await prisma.courseCompletion.findMany({
+        where: { userId: Number(userId) }
+      });
+
+      stats = {
+        hoursSpent: progress.reduce((sum, p) => sum + (p.hoursSpent || 0), 0),
+        certificatesEarned: completions.length,
+        averageScore: progress.length > 0 
+          ? Math.round(progress.reduce((sum, p) => sum + (p.progress || 0), 0) / progress.length)
+          : 0
+      };
+    } else if (user.role === 'INSTRUCTOR') {
+      const courses = await prisma.course.findMany({
+        where: { instructorId: userId },
+        include: {
+          _count: {
+            select: {
+              progress: true
+            }
+          }
+        }
+      });
+
+      stats = {
+        coursesCreated: courses.length,
+        totalStudents: courses.reduce((sum, course) => sum + course._count.progress, 0),
+        averageRating: 4.5 // Mock for now
+      };
+    }
+
+    return stats;
+  } catch (error) {
+    logger.error(`Error getting user stats: ${error.message}`);
+    throw error;
+  }
+};
+
+
 module.exports = {
   createUser,
   verifyCredentials,
@@ -463,5 +811,9 @@ module.exports = {
   getUserDashboard,
   changePassword,
   verifyUserPassword,
-  getUserEnrollments
+  getUserEnrollments,
+  getDashboard,
+  getUserStats,
+  getRecentActivities,
+  getPopularCourses
 };

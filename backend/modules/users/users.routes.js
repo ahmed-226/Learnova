@@ -13,7 +13,8 @@ router.post('/register', validate({ body: schema.register }), controller.registe
 router.post('/login', validate({ body: schema.login }), controller.login);
 router.post('/change-password', auth, validate({ body: schema.changePassword }), controller.changePassword);
 router.post('/delete-account', auth, validate(schema.deleteAccount), controller.deleteUserAccount);
-
+router.get('/dashboard', auth, controller.getDashboard);
+router.get('/stats', auth, controller.getUserStats);
 
 // Protected routes
 router.use(auth);

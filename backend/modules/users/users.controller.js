@@ -107,16 +107,6 @@ const updateProfile = async (req, res, next) => {
 };
 
 
-const getDashboard = async (req, res, next) => {
-  try {
-    const dashboard = await userService.getUserDashboard(req.user.id);
-    res.status(HTTP_STATUS.OK).json(dashboard);
-  } catch (error) {
-    logger.error(`Error fetching dashboard for user ${req.user.id}: ${error.message}`);
-    next(error);
-  }
-};
-
 
 const getAllUsers = async (req, res, next) => {
   try {
@@ -337,6 +327,31 @@ const getUserEnrollments = async (req, res, next) => {
   }
 };
 
+const getDashboard = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const dashboardData = await userService.getDashboard(userId);
+    
+    res.status(HTTP_STATUS.OK).json(dashboardData);
+  } catch (error) {
+    logger.error(`Error in getDashboard: ${error.message}`);
+    next(error);
+  }
+};
+
+const getUserStats = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const stats = await userService.getUserStats(userId);
+    
+    res.status(HTTP_STATUS.OK).json(stats);
+  } catch (error) {
+    logger.error(`Error in getUserStats: ${error.message}`);
+    next(error);
+  }
+};
+
+
 module.exports = {
   register,
   login,
@@ -346,12 +361,13 @@ module.exports = {
   getEnrolledCourses,
   getUserEnrollments,
   uploadAvatar,
-  getDashboard,
   getAllUsers,
   getUserById,
   updateUser,
   deleteUser,
   checkRole,
   changePassword,
-  deleteUserAccount
+  deleteUserAccount,
+  getDashboard,
+  getUserStats
 };
