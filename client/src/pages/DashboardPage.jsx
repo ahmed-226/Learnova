@@ -3,31 +3,73 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
-import DashboardStats from '../components/dashboard/DashboardStats';
 import RecentActivityCard from '../components/dashboard/RecentActivityCard';
-import UpcomingLessonCard from '../components/dashboard/UpcomingLessonCard';
 import PopularCoursesCard from '../components/dashboard/PopularCoursesCard';
-import { instructorCourses, recentActivities, upcomingLessons } from '../data/main.js';
+import { useAuth } from '../contexts/AuthContext';
 
 const DashboardPage = () => {
+  const { user, api } = useAuth();
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [welcomeMessage, setWelcomeMessage] = useState(() => {
     const currentHour = new Date().getHours();
     if (currentHour < 12) return 'Good morning';
     if (currentHour < 18) return 'Good afternoon';
     return 'Good evening';
   });
-  
-  const userData = {
-    name: "Alex Johnson",
-    avatar: "https://randomuser.me/api/portraits/men/44.jpg",
-    role: "INSTRUCTOR",
-    courseProgress: 68,
-    hoursSpent: 42,
-    certificatesEarned: 1,
-    averageScore: 89
-  };
 
-  const isInstructor = userData.role === "student";
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!user || !api) return;
+
+      try {
+        setLoading(true);
+        const response = await api.get('/users/dashboard');
+        setDashboardData(response.data);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setError('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [user, api]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col min-h-screen bg-primary-50 dark:bg-dark-bg">
+        <Navbar />
+        <div className="flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-400">Loading dashboard...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col min-h-screen bg-primary-50 dark:bg-dark-bg">
+        <Navbar />
+        <div className="flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-600 dark:text-red-400">{error}</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  const isInstructor = user?.role === 'INSTRUCTOR';
+  const stats = dashboardData?.stats || {};
 
   return (
     <div className="flex flex-col min-h-screen bg-primary-50 dark:bg-dark-bg">
@@ -43,7 +85,9 @@ const DashboardPage = () => {
         >
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold">{welcomeMessage}, {userData.name}!</h1>
+              <h1 className="text-2xl md:text-3xl font-bold">
+                {welcomeMessage}, {user?.firstName}!
+              </h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1">
                 {isInstructor 
                   ? "Manage your courses and engage with your students"
@@ -60,7 +104,7 @@ const DashboardPage = () => {
                   Create New Course
                 </Link>
               ) : (
-                <button className="btn btn-primary">Start Learning</button>
+                <Link to="/courses" className="btn btn-primary">Start Learning</Link>
               )}
             </div>
           </div>
@@ -73,7 +117,51 @@ const DashboardPage = () => {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="mb-8"
         >
-          <DashboardStats userData={userData} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {isInstructor ? (
+              <>
+                <div className="card p-6 text-center">
+                  <div className="text-3xl font-bold text-primary-600 dark:text-primary-400">
+                    {stats.coursesCreated || 0}
+                  </div>
+                  <div className="text-gray-600 dark:text-gray-400 mt-1">Courses Created</div>
+                </div>
+                <div className="card p-6 text-center">
+                  <div className="text-3xl font-bold text-secondary-600 dark:text-secondary-400">
+                    {stats.totalStudents || 0}
+                  </div>
+                  <div className="text-gray-600 dark:text-gray-400 mt-1">Total Students</div>
+                </div>
+                <div className="card p-6 text-center">
+                  <div className="text-3xl font-bold text-green-600 dark:text-green-400">
+                    {stats.averageRating || 0}
+                  </div>
+                  <div className="text-gray-600 dark:text-gray-400 mt-1">Average Rating</div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="card p-6 text-center">
+                  <div className="text-3xl font-bold text-primary-600 dark:text-primary-400">
+                    {stats.hoursSpent || 0}
+                  </div>
+                  <div className="text-gray-600 dark:text-gray-400 mt-1">Hours Spent</div>
+                </div>
+                <div className="card p-6 text-center">
+                  <div className="text-3xl font-bold text-secondary-600 dark:text-secondary-400">
+                    {stats.certificatesEarned || 0}
+                  </div>
+                  <div className="text-gray-600 dark:text-gray-400 mt-1">Certificates</div>
+                </div>
+                <div className="card p-6 text-center">
+                  <div className="text-3xl font-bold text-green-600 dark:text-green-400">
+                    {stats.averageScore || 0}%
+                  </div>
+                  <div className="text-gray-600 dark:text-gray-400 mt-1">Average Score</div>
+                </div>
+              </>
+            )}
+          </div>
         </motion.div>
         
         {/* Main Dashboard Grid */}
@@ -81,7 +169,7 @@ const DashboardPage = () => {
           {/* Left Column - 2/3 width on large screens */}
           <div className="lg:col-span-2 space-y-8">
             {/* Instructor Courses Section */}
-            {isInstructor && (
+            {isInstructor && dashboardData?.instructorCourses && (
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -95,9 +183,9 @@ const DashboardPage = () => {
                     </Link>
                   </div>
                   
-                  {instructorCourses.length > 0 ? (
+                  {dashboardData.instructorCourses.length > 0 ? (
                     <div className="space-y-4">
-                      {instructorCourses.map(course => (
+                      {dashboardData.instructorCourses.slice(0, 3).map(course => (
                         <div 
                           key={course.id} 
                           className="flex flex-col md:flex-row md:items-center justify-between p-4 border dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
@@ -109,29 +197,17 @@ const DashboardPage = () => {
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
-                                {course.enrollmentCount} students
-                              </span>
-                              <span className="flex items-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                </svg>
-                                {course.moduleCount} modules
+                                {course._count?.progress || 0} students
                               </span>
                               <span className="flex items-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                Updated {course.lastUpdated}
+                                Updated {new Date(course.updatedAt).toLocaleDateString()}
                               </span>
                             </div>
                           </div>
                           <div className="flex space-x-2">
-                            <Link 
-                              to={`/courses/${course.id}/edit`} 
-                              className="btn btn-outline btn-sm py-1"
-                            >
-                              Edit
-                            </Link>
                             <Link 
                               to={`/courses/${course.id}/modules`} 
                               className="btn btn-primary btn-sm py-1"
@@ -171,147 +247,36 @@ const DashboardPage = () => {
               <div className="card">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-semibold">Recent Activity</h2>
-                  <button className="text-sm text-primary-600 dark:text-primary-400 hover:underline">
-                    View All
-                  </button>
                 </div>
                 <div className="space-y-4">
-                  {recentActivities.map(activity => (
-                    <RecentActivityCard key={activity.id} activity={activity} />
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-            
-            {/* Upcoming Lessons */}
-            {!isInstructor && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-              >
-                <div className="card">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-semibold">Upcoming Lessons</h2>
-                    <button className="text-sm text-primary-600 dark:text-primary-400 hover:underline">
-                      View Calendar
-                    </button>
-                  </div>
-                  {upcomingLessons.length > 0 ? (
-                    <div className="space-y-4">
-                      {upcomingLessons.map(lesson => (
-                        <UpcomingLessonCard key={lesson.id} lesson={lesson} />
-                      ))}
-                    </div>
+                  {dashboardData?.recentActivities?.length > 0 ? (
+                    dashboardData.recentActivities.map(activity => (
+                      <RecentActivityCard key={activity.id} activity={activity} />
+                    ))
                   ) : (
                     <div className="text-center py-8">
-                      <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                      <h3 className="text-lg font-medium mb-2">No Upcoming Lessons</h3>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        You don't have any scheduled lessons right now.
-                      </p>
+                      <p className="text-gray-600 dark:text-gray-400">No recent activity</p>
                     </div>
                   )}
                 </div>
-              </motion.div>
-            )}
-            
-            {/* Student Submissions/Feedback Section for Instructors */}
-            {isInstructor && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-              >
-                <div className="card">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-semibold">Recent Submissions</h2>
-                    <button className="text-sm text-primary-600 dark:text-primary-400 hover:underline">
-                      View All
-                    </button>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="p-4 border dark:border-gray-700 rounded-lg">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-500 px-2 py-1 rounded-md">Pending Review</span>
-                          <h4 className="font-medium mt-2">Assignment: Building a Responsive Layout</h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Submitted by John Smith • 2 hours ago</p>
-                        </div>
-                        <button className="btn btn-outline btn-sm">Review</button>
-                      </div>
-                    </div>
-                    <div className="p-4 border dark:border-gray-700 rounded-lg">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-500 px-2 py-1 rounded-md">Pending Review</span>
-                          <h4 className="font-medium mt-2">Assignment: JavaScript Event Handlers</h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Submitted by Maria Rodriguez • Yesterday</p>
-                        </div>
-                        <button className="btn btn-outline btn-sm">Review</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
+              </div>
+            </motion.div>
           </div>
           
           {/* Right Column - 1/3 width on large screens */}
           <div className="space-y-8">
+            {/* Popular Courses */}
             {!isInstructor && (
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
               >
-                <PopularCoursesCard />
+                <PopularCoursesCard popularCourses={dashboardData?.popularCourses || []} />
               </motion.div>
             )}
             
-            {isInstructor && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-              >
-                <div className="card">
-                  <h2 className="text-xl font-semibold mb-6">Quick Actions</h2>
-                  <div className="grid grid-cols-1 gap-3">
-                    <Link to="/create-course" className="btn btn-outline flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                      </svg>
-                      Create New Course
-                    </Link>
-                    <Link to="/create-content" className="btn btn-outline flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      Add Content
-                    </Link>
-                    <Link to="/assignments" className="btn btn-outline flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                      Manage Assignments
-                    </Link>
-                    <Link to="/student-progress" className="btn btn-outline flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
-                      View Student Progress
-                    </Link>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-            
-            {/* Learning Goals */}
+            {/* Learning Goals / Course Analytics */}
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -319,64 +284,60 @@ const DashboardPage = () => {
             >
               <div className="card">
                 <h2 className="text-xl font-semibold mb-6">
-                  {isInstructor ? "Course Analytics" : "Learning Goals"}
+                  {isInstructor ? "Quick Actions" : "Learning Goals"}
                 </h2>
                 
                 {isInstructor ? (
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total Enrollments</span>
-                        <span className="text-sm text-gray-600 dark:text-gray-400">222 students</span>
-                      </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                        <div className="bg-primary-600 h-2.5 rounded-full" style={{ width: '70%' }}></div>
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">↑ 12% from last month</p>
-                    </div>
-                    
-                    <div>
-                      <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Average Completion Rate</span>
-                        <span className="text-sm text-gray-600 dark:text-gray-400">76%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                        <div className="bg-secondary-600 h-2.5 rounded-full" style={{ width: '76%' }}></div>
-                      </div>
-                    </div>
-                    
-                    <div className="pt-4">
-                      <button className="btn btn-outline w-full">
-                        View Detailed Analytics
-                      </button>
-                    </div>
+                  <div className="grid grid-cols-1 gap-3">
+                    <Link to="/create-course" className="btn btn-outline flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                      </svg>
+                      Create New Course
+                    </Link>
+                    <Link to="/courses" className="btn btn-outline flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      View Analytics
+                    </Link>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     <div>
                       <div className="flex justify-between mb-1">
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Weekly Study Goal</span>
-                        <span className="text-sm text-gray-600 dark:text-gray-400">4/5 hours</span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          {Math.floor((stats.hoursSpent || 0) / 7)}/10 hours
+                        </span>
                       </div>
                       <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                        <div className="bg-primary-600 h-2.5 rounded-full" style={{ width: '80%' }}></div>
+                        <div 
+                          className="bg-primary-600 h-2.5 rounded-full" 
+                          style={{ width: `${Math.min(((stats.hoursSpent || 0) / 7) / 10 * 100, 100)}%` }}
+                        ></div>
                       </div>
                     </div>
                     
                     <div>
                       <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Course Completion</span>
-                        <span className="text-sm text-gray-600 dark:text-gray-400">2/3 courses</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Course Progress</span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          {stats.averageScore || 0}%
+                        </span>
                       </div>
                       <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                        <div className="bg-secondary-600 h-2.5 rounded-full" style={{ width: '67%' }}></div>
+                        <div 
+                          className="bg-secondary-600 h-2.5 rounded-full" 
+                          style={{ width: `${stats.averageScore || 0}%` }}
+                        ></div>
                       </div>
                     </div>
                     
                     <div className="pt-4">
-                      <button className="btn btn-outline w-full">
-                        Set New Goal
-                      </button>
+                      <Link to="/courses" className="btn btn-outline w-full">
+                        Browse Courses
+                      </Link>
                     </div>
                   </div>
                 )}
