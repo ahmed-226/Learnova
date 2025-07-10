@@ -687,14 +687,14 @@ const getCourseContent = async (courseId, userId) => {
         modules: course.modules.map(module => ({
           ...module,
           content: [
-            ...module.lessons.map(lesson => ({
-              ...lesson,
-              type: 'lesson',
-              subType: lesson.videoUrl ? 'video' : 'text', 
-              moduleId: module.id,
-              moduleTitle: module.title,
-              isCompleted: userProgress.some(p => p.lessonId === lesson.id && p.isCompleted)
-            })),
+          ...module.lessons.map(lesson => ({
+            ...lesson,
+            type: 'lesson',
+            subType: lesson.videoUrl ? 'video' : 'text', 
+            moduleId: module.id,
+            moduleTitle: module.title,
+            isCompleted: userProgress.some(p => p.lessonId === lesson.id && p.isCompleted)
+          })),
           ...module.quizzes.map(quiz => ({
             ...quiz,
             type: 'quiz',

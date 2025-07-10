@@ -84,8 +84,6 @@ useEffect(() => {
     } else {
       const moduleItems = [];
       
-      
-
       if (module.lessons) {
           moduleItems.push(...module.lessons.map(item => ({
             ...item,
@@ -217,43 +215,43 @@ const markAsCompleted = async () => {
   if (!currentContent) return;
   
   try {
-    console.log('Marking content as completed:', currentContent);
-    
-    
     let response;
     if (currentContent.type === 'lesson' || currentContent.type === 'video' || currentContent.type === 'text') {
       response = await api.post(`/lessons/${currentContent.id}/complete`);
+      console.log('Completion response:', response?.data);
     } else if (currentContent.type === 'quiz') {
-      response = await api.post(`/quizzes/${currentContent.id}/complete`);
+      // For quizzes, completion is already handled in quiz submission
+      // Just refetch the course data to update the UI
+      console.log('Quiz completion handled in QuizContent component - skipping API call');
     } else if (currentContent.type === 'assignment') {
       response = await api.post(`/assignments/${currentContent.id}/complete`);
+      console.log('Completion response:', response?.data);
     }
     
-    console.log('Completion response:', response.data);
+    // Refetch the data and update everything
+    const refreshed = await api.get(`/courses/${courseId}/content`);
+    setCourse(refreshed.data);
     
-    
-    const updatedCourse = {...course};
-    updatedCourse.modules = course.modules.map(module => {
-      if (module.id === currentContent.moduleId) {
-        return {
-          ...module,
-          content: module.content.map(item => {
-            if (item.id === currentContent.id) {
-              return { ...item, isCompleted: true };
-            }
-            return item;
-          })
-        };
+    // Find and update the current content from the refreshed data
+    const allRefreshedContent = [];
+    refreshed.data.modules.forEach(module => {
+      if (module.content) {
+        allRefreshedContent.push(...module.content);
       }
-      return module;
     });
     
-    setCourse(updatedCourse);
+    const refreshedCurrentContent = allRefreshedContent.find(
+      item => item.id === currentContent.id && item.type === currentContent.type
+    );
     
+    if (refreshedCurrentContent) {
+      setCurrentContent(refreshedCurrentContent);
+      console.log(`✅ Content completion status: ${refreshedCurrentContent.isCompleted}`);
+    }
     
     console.log(`✅ Marked content "${currentContent.title}" as completed`);
     
-    
+    // Navigate to next content after a short delay
     setTimeout(() => {
       goToNextContent();
     }, 1000);
@@ -266,14 +264,17 @@ const markAsCompleted = async () => {
       status: error.response?.status
     });
     
-    let errorMessage = 'Failed to mark content as completed. Please try again.';
-    if (error.response?.data?.error) {
-      errorMessage = error.response.data.error;
+    // For quizzes, don't show error since completion is handled elsewhere
+    if (currentContent.type !== 'quiz') {
+      let errorMessage = 'Failed to mark content as completed. Please try again.';
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+      alert(errorMessage);
     }
-    
-    alert(errorMessage);
   }
-};  
+};
+
   const goToNextContent = () => {
     if (nextContent) {
       const nextContentType = nextContent.type;
@@ -320,17 +321,19 @@ const markAsCompleted = async () => {
     }
   };
 
+  console.log('Current content being rendered:', currentContent);
+  console.log('Content ID:', currentContent?.id);
+  console.log('Content type:', currentContent?.type);
 
-
-const renderContent = () => {
-  if (!currentContent) {
-    return (
-      <div className="p-8 text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600 mx-auto mb-4"></div>
-        <p>Loading content...</p>
-      </div>
-    );
-  }
+  const renderContent = () => {
+    if (!currentContent) {
+      return (
+        <div className="p-8 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p>Loading content...</p>
+        </div>
+      );
+    }
   
   try {
     
