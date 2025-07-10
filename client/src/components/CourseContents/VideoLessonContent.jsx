@@ -16,9 +16,13 @@ const VideoLessonContent = ({ content, onComplete, onNext, isCompleted }) => {
     try {
       await onComplete();
       setLocalCompleted(true);
+      setIsWatched(true); // Also update the watched state
       console.log('Video lesson marked as completed successfully');
     } catch (error) {
       console.error('Error completing video lesson:', error);
+      // Revert local state if API call failed
+      setLocalCompleted(false);
+      setIsWatched(false);
     } finally {
       setIsSubmitting(false);
     }
