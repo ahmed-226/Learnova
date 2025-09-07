@@ -1,0 +1,58 @@
+name: Image Optimization Check
+
+on:
+  pull_request:
+    paths:
+      - '**/*.png'
+      - '**/*.jpg'
+      - '**/*.jpeg'
+      - '**/*.gif'
+      - '**/*.webp'
+  push:
+    branches: [main]
+    paths:
+      - '**/*.png'
+      - '**/*.jpg'
+      - '**/*.jpeg'
+      - '**/*.gif'
+      - '**/*.webp'
+
+jobs:
+  validate-images:
+    runs-on: ubuntu-latest
+    name: Validate Repository Images
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+          
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+        
+      - name: Validate images
+        working-directory: backend
+        run: npm run validate-images
+        
+      - name: Comment on PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            // You could capture the output and create a comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🖼️ Image validation completed! Check the action logs for details.'
+            });

@@ -1,0 +1,11 @@
+{
+  "schedule": "daily",
+  "ignoredFiles": [
+    "node_modules/**",
+    "*.{ico,svg}",
+    "src/icons/**"
+  ],
+  "aggressiveCompression": false,
+  "compressWiki": true,
+  "minKBReduced": 10
+}

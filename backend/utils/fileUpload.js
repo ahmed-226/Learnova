@@ -3,6 +3,8 @@ const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const fs = require('fs');
 const path = require('path');
+const { validateImage, assessImageQuality } = require('./imageValidation');
+const logger = require('./logger');
 
 /**
  * Creates a Cloudinary storage configuration for a specific resource type
@@ -51,10 +53,10 @@ const courseFilesUpload = multer({
 });
 
 /**
- * Upload files directly to Cloudinary without multer middleware
+ * Enhanced upload to Cloudinary with image validation
  * @param {string} filePath - Path to the file to upload
  * @param {Object} options - Cloudinary upload options
- * @returns {Promise} - Cloudinary upload response
+ * @returns {Promise} - Cloudinary upload response with validation info
  */
 const uploadToCloudinary = async (filePath, options = {}) => {
   try {
@@ -65,6 +67,27 @@ const uploadToCloudinary = async (filePath, options = {}) => {
     
     const folder = options.folder || 'learnova';
     const resourceType = options.resourceType || 'auto';
+    
+    // Validate image if it's an image upload
+    if (resourceType === 'auto' || resourceType === 'image') {
+      const validation = await validateImage(filePath, {
+        maxFileSize: options.maxFileSize || 10 * 1024 * 1024,
+        allowedFormats: options.allowedFormats || ['jpeg', 'jpg', 'png', 'gif', 'webp'],
+        maxDimensions: options.maxDimensions || { width: 2048, height: 2048 }
+      });
+      
+      if (!validation.isValid) {
+        throw new Error(`Image validation failed: ${validation.error}`);
+      }
+      
+      // Assess image quality
+      const quality = await assessImageQuality(filePath);
+      logger.info(`Uploading image with quality score: ${quality.score} (${quality.quality})`);
+      
+      if (quality.suggestions.length > 0) {
+        logger.warn(`Image optimization suggestions: ${quality.suggestions.join(', ')}`);
+      }
+    }
     
     console.log(`Uploading file to Cloudinary: ${filePath}`);
     console.log(`Options: ${JSON.stringify({ folder, resourceType, ...options })}`);
